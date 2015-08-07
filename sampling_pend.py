@@ -25,7 +25,7 @@ def cost_step(x,u):
 
 def rollout(W=[],x=x0,dt=0.01):
     n = len(x)
-    nU = 2
+    nU = 1
     NStep = len(W)/nU
 
     X = np.zeros((n,NStep+1))
@@ -35,7 +35,8 @@ def rollout(W=[],x=x0,dt=0.01):
     
     for step in range(NStep):
         w = W[nU*step:nU*(step+1)]
-        x = dPend.step(x,w,dt,lag.EULER)
+        u = np.array([w,0])
+        x = dPend.step(x,u,dt,lag.EULER)
         X[:,step+1] = x
 
         cost = cost + cost_step(x,w)*dt
@@ -57,7 +58,7 @@ NStep = int(round(2/dt))
 T = dt * np.arange(NStep+1)
 
 #Initial conditions
-U = np.zeros(2*NStep)
+U = np.zeros(NStep)
 
 lam = 0.00001
 likelihoodParam = (x0,dt,lam)
@@ -66,7 +67,7 @@ logLik = loglikelihood(U,*likelihoodParam)
 NSamp = 200
 
 for samp in range(NSamp):
-    W = 40.*randn(2*NStep)
+    W = 40.*randn(NStep)
     U,logLik = eslice(U,W,loglikelihood,likelihoodParam,logLik)
     cost = -logLik * lam
     if (samp+1) % 10 == 0:
