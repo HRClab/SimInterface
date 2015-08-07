@@ -35,7 +35,7 @@ for i in range(n):
     V = V + 10 * pos[1,i]
 
 # friction
-fric = 4 * dq
+fric = 1 * dq
 
 SYS = lag.lagrangian_system(T,V,fric,x)
 lag.save(SYS,'dPend')
