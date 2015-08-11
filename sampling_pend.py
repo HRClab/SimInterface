@@ -38,26 +38,3 @@ for samp in range(NSamp):
 
 X,cost = sys.openLoopSim(bestU)
 ani = sys.movie(X)
-
-# fig = plt.figure(1)
-# plt.clf()
-# ax = fig.add_subplot(111, autoscale_on=False, aspect=1,
-#                      xlim=(-2.1,2.1), ylim=(-2.1,2.1))
-
-# line = ax.plot([],[],lw=2)[0]
-# lineTarget = ax.plot([],[],'r*')[0]
-
-# Joints = np.zeros((2,3))
-
-# def init():
-#     line.set_data([],[])
-#     lineTarget.set_data(target_pos[0],target_pos[1])
-#     return line,lineTarget
-
-# def animate(k):
-#     x = X[:,k]
-#     Joints[:,1:] = pos_fun(x)
-#     line.set_data(Joints[0],Joints[1])
-#     return line,lineTarget
-
-

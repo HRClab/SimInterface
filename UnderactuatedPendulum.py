@@ -58,6 +58,22 @@ class UnderactuatedPendulum:
 
         return X, cost
 
+    def linearization(self,x,u):
+        # Because of underactuation need to put into bigger vector
+        U = np.array([u,0])
+        A,BFull,g = dPend.linearization(x,U)
+        B = BFull[:,0]
+        return A,B,g
+
+    def discreteTimeLinearization(self,x,u):
+        n = len(x)
+        A,B,g = self.linearization(x)
+
+        A = np.eye(n) + self.dt * A
+        B = self.dt * B
+        g = self.dt * g
+        return A,B,g
+    
     def movie(self,X):
         fig = plt.figure(1)
         plt.clf()
