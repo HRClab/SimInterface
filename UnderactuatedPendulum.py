@@ -61,13 +61,13 @@ class UnderactuatedPendulum:
     def linearization(self,x,u):
         # Because of underactuation need to put into bigger vector
         U = np.array([u,0])
-        A,BFull,g = dPend.linearization(x,U)
+        A,BFull,g = self.dPend.linearization(x,U)
         B = BFull[:,0]
         return A,B,g
 
     def discreteTimeLinearization(self,x,u):
         n = len(x)
-        A,B,g = self.linearization(x)
+        A,B,g = self.linearization(x,u)
 
         A = np.eye(n) + self.dt * A
         B = self.dt * B
