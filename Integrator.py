@@ -1,7 +1,7 @@
-import MDP
+import MarkovDecisionProcess as MDP
 
 
-class Integrator(MDP.MDP):
+class Integrator(MDP.MarkovDecisionProcess):
     def __init__(self):
         self.dt = 0.1
         self.x0 = 1.0

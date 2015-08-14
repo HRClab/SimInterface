@@ -1,6 +1,6 @@
 import numpy as np
 
-class MDP:
+class MarkovDecisionProcess:
     def __init__(self):
         self.x0 = 0
 
@@ -11,17 +11,17 @@ class MDP:
         return x
 
     def simulatePolicy(self,policy):
-        NStep = policy.NStep
+        Horizon = policy.Horizon
         if isinstance(self.x0,np.ndarray):
             n = len(self.x0)
-            X = np.zeros((NStep+1,n))
+            X = np.zeros((Horizon+1,n))
         else:
-            X = np.zeros(NStep+1)
+            X = np.zeros(Horizon+1)
 
         x = self.x0
         X[0] = x
         cost = 0.
-        for k in range(NStep):
+        for k in range(Horizon):
             u = policy.action(x,k)
             cost = cost + self.costStep(x,u,k)
             x = self.step(x,u,k)
