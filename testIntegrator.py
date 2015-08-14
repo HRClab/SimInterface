@@ -6,15 +6,8 @@ import matplotlib.pyplot as plt
 
 sys = Int.Integrator()
 
-class staticGain(ctrl.Controller):
-    def __init__(self,Horizon=0,gain=0):
-        self.Horizon = Horizon
-        self.gain = gain
 
-    def action(self,x,k):
-        return self.gain*x
-
-staticCtrl = staticGain(Horizon=100,gain=-.5)
+staticCtrl = ctrl.staticGain(gain=-.5,Horizon=100)
 
 X,cost = sys.simulatePolicy(staticCtrl)
 

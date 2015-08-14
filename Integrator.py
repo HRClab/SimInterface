@@ -1,7 +1,7 @@
-import LinearQuadraticSystem as LQS
+import MarkovDecisionProcess as MDP
 
 
-class Integrator(LQS.LinearQuadraticSystem):
+class Integrator(MDP.LinearQuadraticSystem):
     """
     This is the simplest linear system dynamical system
     """
@@ -12,5 +12,5 @@ class Integrator(LQS.LinearQuadraticSystem):
         B = self.dt
         Q = self.dt * 1.
         R = self.dt * 1.
-        LQS.LinearQuadraticSystem.__init__(self,A=A,B=B,Cxx=Q,Cuu=R)
+        MDP.LinearQuadraticSystem.__init__(self,A=A,B=B,Cxx=Q,Cuu=R)
                 
