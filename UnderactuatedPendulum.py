@@ -6,6 +6,7 @@ The pendulum is actuated at the base link only.
 """
 
 import numpy as np
+from scipy.linalg import block_diag
 import pylagrange as lag
 import sympy_utils as su
 import matplotlib.pyplot as plt
@@ -20,15 +21,15 @@ class UnderactuatedPendulum:
         
         self.dPend = lag.load('dPend')
         self.pos_fun = su.sympy_load('pos_fun')
+        self.targetCost = su.sympy_load('targetCost')
+        self.targetCost_jac = su.sympy_load('targetCost_jac')
+        self.targetCost_hes = su.sympy_load('targetCost_hes')
 
         self.q = 1000.0
-        self.r = 0.00001
+        self.r = 0.001
         
     def cost_step(self,x,u):
-        tip_pos = self.pos_fun(x)[:,-1]
-        tip_error = tip_pos - self.target
-
-        cost = self.q * np.dot(tip_error,tip_error) + \
+        cost = self.q * self.targetCost(x,self.target) + \
                self.r * np.dot(u,u)
         return cost
 
@@ -69,10 +70,34 @@ class UnderactuatedPendulum:
         n = len(x)
         A,B,g = self.linearization(x,u)
 
-        A = np.eye(n) + self.dt * A
-        B = self.dt * B
-        g = self.dt * g
-        return A,B,g
+        Adt = np.eye(n) + self.dt * A
+        Bdt = self.dt * B
+        gdt = self.dt * g
+        return Adt,Bdt,gdt
+
+    def costMatrix(self,xNom):
+        """
+        Matrix such that if x is near xNom,
+        the following holds approximately:
+        cost_step = [1,x',u'] * C * [1;x; u]
+        """
+        n = len(xNom)
+        Cuu = self.r
+
+        Hes = self.targetCost_hes(xNom,self.target)
+        Cxx = .5 * Hes
+        grad = self.targetCost_jac(xNom,self.target)
+        Cx1 = .5 * (grad - np.dot(Hes,xNom))
+        C11 = self.targetCost(xNom,self.target) - \
+              np.dot(grad,xNom) + .5 * np.dot(xNom,np.dot(Hes,xNom))
+
+        C = block_diag(C11,Cxx,Cuu)
+        C[1:n+1,0] = Cx1
+        C[0,1:n+1] = Cx1
+        return C
+
+    def discreteTimeCostMatrix(self,xNom):
+        return self.dt * self.costMatrix(xNom)
     
     def movie(self,X):
         fig = plt.figure(1)

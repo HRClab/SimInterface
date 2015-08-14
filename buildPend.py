@@ -40,4 +40,16 @@ fric = 1 * dq
 SYS = lag.lagrangian_system(T,V,fric,x)
 lag.save(SYS,'dPend')
 # This is useful for plotting
-pos_sun = su.sympy_save(pos,x,'pos_fun')
+su.sympy_save(pos,x,'pos_fun')
+
+# Now let us make an error cost function
+target = sym.symarray('target',2)
+targetError = target - pos[:,-1]
+
+targetCost = np.dot(targetError,targetError)
+targetCost_jac = su.jacobian(targetCost,x)
+targetCost_hes = su.jacobian(targetCost_jac,x)
+
+su.sympy_save(targetCost,(x,target),'targetCost')
+su.sympy_save(targetCost_jac,(x,target),'targetCost_jac')
+su.sympy_save(targetCost_hes,(x,target),'targetCost_hes')
