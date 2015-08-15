@@ -1,5 +1,6 @@
 import MarkovDecisionProcess as MDP
 import numpy as np
+from numpy.random import randn
 from scipy.linalg import solve
 
 class Controller:
@@ -31,10 +32,9 @@ def gainMatrix(M,p):
     return -solve(C,B.T,sym_pos=True)
 
 class linearQuadraticRegulator(Controller):
-    def __init__(self,LinQuadSys,*args,**kwargs):
+    def __init__(self,SYS,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
-        self.computeGains(LinQuadSys)
-
+        self.computeGains(SYS)
 
     def computeGains(self,sys):
         n = sys.NumStates
@@ -74,6 +74,24 @@ class linearQuadraticRegulator(Controller):
 class modelPredictiveControl(Controller):
     def __init__(self,SYS,predictiveHorizon,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
-        dynMat = SYS.dynamicsMatrix
-        costMat = SYS.costMatrix
-        self.predictiveSystem = 0
+        self.SYS = SYS
+        self.predictiveHorizon = predictiveHorizon
+    def action(self,x,k):
+        # Currently only supporting time invariant systems
+        # It will probably be weird if a time-varying system is used.
+        # This will need to be updated for consistency with nonlinear systems
+        dynMat = self.SYS.dynamicsMatrix
+        costMat = self.SYS.costMatrix
+        predictiveSystem = MDP.LinearQuadraticSystem(dynMat,costMat)
+        predictiveController = linearQuadraticRegulator(predictiveSystem,
+                                                        Horizon = self.predictiveHorizon)
+
+        curVec = np.hstack((1,x))
+        gain = predictiveController.Gain[0]
+        return np.dot(gain,curVec)
+
+class samplingController(Controller):
+    def __init__(self,SYS,KLWeight=1, burnIn=0, *args, **kwargs):
+        Controller.__init__(self,*args,**kwargs)
+        self.KLWeight = KLWeight
+        self.burnIn = burnIn

@@ -92,7 +92,6 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
         self.dynamicsMatrix = dynamicsMatrix
         self.costMatrix = costMatrix
         self.timeInvariant = timeInvariant
-        print timeInvariant
         if timeInvariant:
             shapeOffset = 0
         else:
