@@ -29,76 +29,42 @@ class MarkovDecisionProcess:
 
         return X,cost
 
-class LinearQuadraticSystem(MarkovDecisionProcess):
+def shapeFromB(B):
+    if isinstance(B,np.ndarray):
+        if len(B.shape) == 2:
+            n,p = B.shape
+        else:
+            n = len(B)
+            p = 1
+    else:
+        n = 1
+        p = 1
+
+    return n,p
+
+def buildDynamicsMatrix(A=0,B=0,g=0,timeInvariant=True):
     """
-    A discrete-time linear dynamical system with a quadratic cost.
-
+    Create a matrix, M, such that
+    x[k+1] = M * [1; x; u] (in Matlab Notation)
     """
-    def __init__(self,A=0,B=0,g=0,
-                 Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0,
-                 timeInvariant = True):
-
-        self.timeInvariant = timeInvariant
-
-        
-        if timeInvariant:
-            if isinstance(B,np.ndarray):
-                if len(B.shape) == 1:
-                    self.NumStates = len(B)
-                    self.NumInputs = 1
-                else:
-                    self.NumStates, self.NumInputs = B.shape
-            else:
-                self.NumStates = 1
-                self.NumInputs = 1
-                
-            self.dynamicsMatrix = self.buildDynamicsMatrix(A,B,g)
-            self.costMatrix = self.buildCostMatrix(Cxx,Cuu,C11,
-                                                   Cxu,Cx1,Cu1)
-
-        # Deal with time-varying case later
-        # else:
-        #     pass
-        # 
-            # Horizon = len(A)
-            # if isintance(A[0],np.ndarray):
-            #     n = A[0].shape[0]
-            #     self.dynamicsMatrix = np.zeros((Horizon,n,n))
-            #     self.costMatrix = np.zeros((Horizon,n,n))
-            # else:
-            #     self.dynamicsMatrix = np.zeros(Horizon)
-            #     # May need to change this later. . . 
-            #     self.costMatrix = np.zeros((Horizon,n,n))
-                
-            # for k in range(Horizon):
-            #     self.dynamicsMatrix[k] = self.buildDynamicsMatrix(A[k],
-            #                                                       B[k],
-            #                                                       g[k])
-
-            #     self.costMatrix[k] = self.buildCostMatrix(Cxx[k],
-            #                                               Cuu[k],
-            #                                               C11[k],
-            #                                               Cxu[k],
-            #                                               Cx1[k],
-            #                                               Cu1[k])
-            
-    def buildDynamicsMatrix(self,A,B,g):
-        """
-        Create a matrix, M, such that
-        x[k+1] = M * [1; x; u] (in Matlab Notation)
-        """
-        n = self.NumStates
-        p = self.NumInputs
+    if timeInvariant:
+        n,p = shapeFromB(B)
         AMat = np.reshape(A,(n,n))
         BMat = np.reshape(B,(n,p))
         gMat = np.reshape(g,(n,1))
         H = np.hstack((gMat,AMat,BMat))
-        return H
+    else:
+        T = A.shape[0]
+        n,p = shapeFromB(B[0])
+        AMat = np.reshape(A,(T,n,n))
+        BMat = np.reshape(B,(T,n,p))
+        gMat = np.reshape(g,(T,n,1))
+        H = np.concatenate((gMat,AMat,BMat),axis=2)
+    return H
 
-
-    def buildCostMatrix(self,Cxx,Cuu,C11,Cxu,Cx1,Cu1):
-        n = self.NumStates
-        p = self.NumInputs
+def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0,timeInvariant=True):
+    if timeInvariant:
+        n,p = shapeFromB(Cxu)
         CxxMat = np.reshape(Cxx,(n,n))
         CuuMat = np.reshape(Cuu,(p,p))
         C11Mat = np.reshape(C11,(1,1))
@@ -113,7 +79,27 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
                        np.hstack((Cx1Mat,CxxMat,CxuMat)),
                        np.hstack((Cu1Mat,CuxMat,CuuMat))))
 
-        return C
+        # deal with time-varying case later.
+    return C
+
+
+class LinearQuadraticSystem(MarkovDecisionProcess):
+    """
+    A discrete-time linear dynamical system with a quadratic cost.
+
+    """
+    def __init__(self,dynamicsMatrix,costMatrix,timeInvariant=True):
+        self.dynamicsMatrix = dynamicsMatrix
+        self.costMatrix = costMatrix
+        self.timeInvariant = timeInvariant
+        print timeInvariant
+        if timeInvariant:
+            shapeOffset = 0
+        else:
+            shapeOffset = 1
+        self.NumStates = dynamicsMatrix.shape[shapeOffset]
+        self.NumInputs = dynamicsMatrix.shape[shapeOffset + 1] - \
+                         self.NumStates - 1
 
     def step(self,x,u,k):
         if self.timeInvariant:

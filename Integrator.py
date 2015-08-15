@@ -12,5 +12,8 @@ class Integrator(MDP.LinearQuadraticSystem):
         B = self.dt
         Q = self.dt * 1.
         R = self.dt * 1.
-        MDP.LinearQuadraticSystem.__init__(self,A=A,B=B,Cxx=Q,Cuu=R)
+        dynMat = MDP.buildDynamicsMatrix(A,B)
+        costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
+        MDP.LinearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
+                                  costMatrix=costMat)
                 
