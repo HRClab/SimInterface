@@ -5,8 +5,9 @@ from scipy.linalg import solve, cholesky, block_diag
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
 
 class Controller:
-    def __init__(self,Horizon=0):
+    def __init__(self,Horizon=0,label=''):
         self.Horizon = Horizon
+        self.label = label
 
     def action(self,x,k):
         return 0

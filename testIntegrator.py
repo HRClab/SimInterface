@@ -19,31 +19,28 @@ class Integrator(MDP.LinearQuadraticSystem):
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
         MDP.LinearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
                                   costMatrix=costMat)
-sys = Int.Integrator()
+sys = Integrator()
 
 T = 100
 
 Controllers = []
-ControlNames = []
-staticCtrl = ctrl.staticGain(gain=-.5,Horizon=T)
+staticCtrl = ctrl.staticGain(gain=-.5,Horizon=T,label='Static')
 Controllers.append(staticCtrl)
-ControlNames.append('Static')
 
-lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T)
+lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
-ControlNames.append('LQR')
 
 mpcCtrl = ctrl.modelPredictiveControl(SYS=sys,
                                       predictiveHorizon=10,
-                                      Horizon=T)
+                                      Horizon=T,
+                                      label='MPC')
 Controllers.append(mpcCtrl)
-ControlNames.append('MPC')
 
 samplingCtrl = ctrl.samplingControl(SYS=sys,Horizon=T,
                                     KLWeight=1e-5,burnIn=500,
-                                    ExplorationCovariance = 3.)
+                                    ExplorationCovariance = 3.,
+                                    label='Sampling')
 Controllers.append(samplingCtrl)
-ControlNames.append('Sampling')
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T+1))
@@ -57,7 +54,7 @@ print '\nComparing Controllers\n'
 
 for k in range(NumControllers):
     controller = Controllers[k]
-    name = ControlNames[k]
+    name = controller.label
     X[k], Cost[k] = sys.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
     handle = plt.plot(T,X[k],label=name)[0]

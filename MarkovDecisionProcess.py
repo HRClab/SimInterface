@@ -53,28 +53,53 @@ def buildDynamicsMatrix(A=0,B=0,g=0,timeInvariant=True):
         n,p = shapeFromB(B)
         AMat = np.reshape(A,(n,n))
         BMat = np.reshape(B,(n,p))
-        gMat = np.reshape(g,(n,1))
+        if g == 0:
+            gMat = np.zeros((n,1))
+        else:
+            gMat = np.reshape(g,(n,1))
         H = np.hstack((gMat,AMat,BMat))
     else:
         T = A.shape[0]
         n,p = shapeFromB(B[0])
         AMat = np.reshape(A,(T,n,n))
         BMat = np.reshape(B,(T,n,p))
-        gMat = np.reshape(g,(T,n,1))
+        if g == 0:
+            gMat = np.zeros((T,n,1))
+        else:
+            gMat = np.reshape(g,(T,n,1))
         H = np.concatenate((gMat,AMat,BMat),axis=2)
     return H
 
+def shapeFromSquareMatrix(M):
+    if isinstance(M,np.ndarray):
+        n = M.shape[0]
+    else:
+        n = 1
+    return n
+
+def shapeFromQR(Q,R):
+    n = shapeFromSquareMatrix(Q)
+    p = shapeFromSquareMatrix(R)
+    return n,p
+
+def castToShape(M,Shape):
+    if (not isinstance(M,np.ndarray)) and (np.prod(Shape)>1):
+        MCast = np.zeros(Shape)
+    else:
+        MCast = np.reshape(M,Shape)
+    return MCast
+
 def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0,timeInvariant=True):
     if timeInvariant:
-        n,p = shapeFromB(Cxu)
-        CxxMat = np.reshape(Cxx,(n,n))
-        CuuMat = np.reshape(Cuu,(p,p))
-        C11Mat = np.reshape(C11,(1,1))
-        CxuMat = np.reshape(Cxu,(n,p))
+        n,p = shapeFromQR(Cxx,Cxu)
+        CxxMat = castToShape(Cxx,(n,n))
+        CuuMat = castToShape(Cuu,(p,p))
+        C11Mat = castToShape(C11,(1,1))
+        CxuMat = castToShape(Cxu,(n,p))
         CuxMat = CxuMat.T
-        Cx1Mat = np.reshape(Cx1,(n,1))
+        Cx1Mat = castToShape(Cx1,(n,1))
         C1xMat = Cx1Mat.T
-        Cu1Mat = np.reshape(Cu1,(p,1))
+        Cu1Mat = castToShape(Cu1,(p,1))
         C1uMat = Cu1Mat.T
 
         C = np.vstack((np.hstack((C11Mat,C1xMat,C1uMat)),
@@ -128,3 +153,4 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
         else:
             return self.dynamicsMatrix[k:], self.costMatrix[k:]
         
+
