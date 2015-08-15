@@ -121,4 +121,10 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
         curVec = np.hstack((1,x,u))
         cost = np.dot(curVec,np.dot(costMat,curVec))
         return cost
-    
+
+    def getApproximationMatrices(self,x,u,k):
+        if self.timeInvariant:
+            return self.dynamicsMatrix, self.costMatrix
+        else:
+            return self.dynamicsMatrix[k:], self.costMatrix[k:]
+        

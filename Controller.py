@@ -95,14 +95,18 @@ class modelPredictiveControl(Controller):
     def __init__(self,SYS,predictiveHorizon,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
         self.SYS = SYS
+        self.previousAction = 0
         self.predictiveHorizon = predictiveHorizon
     def action(self,x,k):
         # Currently only supporting time invariant systems
         # It will probably be weird if a time-varying system is used.
         # This will need to be updated for consistency with nonlinear systems
-        dynMat = self.SYS.dynamicsMatrix
-        costMat = self.SYS.costMatrix
-        predictiveSystem = MDP.LinearQuadraticSystem(dynMat,costMat)
+        dynMat,costMat = self.SYS.getApproximationMatrices(x,
+                                                           self.previousAction,
+                                                           k)
+        predictiveSystem = MDP.LinearQuadraticSystem(dynMat,
+                                                     costMat,
+                                                     self.SYS.timeInvariant)
         predictiveController = linearQuadraticRegulator(predictiveSystem,
                                                         Horizon = self.predictiveHorizon)
 
