@@ -11,6 +11,7 @@ class Controller:
         return 0
 
 
+
 class staticGain(Controller):
     def __init__(self,gain=0,*args,**kwargs):
         self.gain = gain
