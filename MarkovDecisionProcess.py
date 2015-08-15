@@ -3,6 +3,8 @@ import numpy as np
 class MarkovDecisionProcess:
     def __init__(self):
         self.x0 = 0
+        self.NumStates = 1
+        self.NumInputs = 1
 
     def costStep(self,x,u,k):
         return 0

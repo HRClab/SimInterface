@@ -1,7 +1,8 @@
 import MarkovDecisionProcess as MDP
 import numpy as np
 from numpy.random import randn
-from scipy.linalg import solve
+from scipy.linalg import solve, cholesky, block_diag
+from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
 
 class Controller:
     def __init__(self,Horizon=0):
@@ -10,8 +11,26 @@ class Controller:
     def action(self,x,k):
         return 0
 
+class openLoopPolicy(Controller):
+    def __init__(self,U,*args,**kwargs):
+        Controller.__init__(self,*args,**kwargs)
+        self.U = U
+        
+    def action(self,x,k):
+        return self.U[k]
 
-
+class flatOpenLoopPolicy(Controller):
+    """
+    Open loop policy from flat array of inputs
+    """
+    def __init__(self,U=0,NumInputs=1,*args,**kwargs):
+        Controller.__init__(self,*args,**kwargs)
+        self.U=U
+        self.NumInputs = NumInputs
+    def action(self,x,k):
+        u = self.U[self.NumInputs*k : self.NumInputs * (k+1)]
+        return u
+    
 class staticGain(Controller):
     def __init__(self,gain=0,*args,**kwargs):
         self.gain = gain
@@ -91,8 +110,47 @@ class modelPredictiveControl(Controller):
         gain = predictiveController.Gain[0]
         return np.dot(gain,curVec)
 
-class samplingController(Controller):
-    def __init__(self,SYS,KLWeight=1, burnIn=0, *args, **kwargs):
-        Controller.__init__(self,*args,**kwargs)
+class samplingControl(flatOpenLoopPolicy):
+    def __init__(self,
+                 SYS,
+                 KLWeight=1,
+                 burnIn=0,
+                 ExplorationCovariance=1.,
+                 *args, **kwargs):
+
+        flatOpenLoopPolicy.__init__(self,NumInputs=SYS.NumInputs,
+                                    *args,**kwargs)
+
+        self.SYS = SYS
         self.KLWeight = KLWeight
-        self.burnIn = burnIn
+
+        if isinstance(ExplorationCovariance,np.ndarray):
+            cholSig = cholesky(ExplorationCovariance,lower=True)
+            NoiseGain = np.kron(np.eye(self.Horizon),cholSig)
+        else:
+            NoiseGain = np.sqrt(ExplorationCovariance) * np.eye(self.Horizon)
+
+        lenW = NoiseGain.shape[0]
+
+        U = np.zeros(lenW)
+        logLik = self.loglikelihood(U)
+        bestCost = np.inf
+
+        for samp in range(burnIn):
+            W = np.dot(NoiseGain,randn(lenW))
+            U,logLik = eslice(U,W,self.loglikelihood,cur_lnpdf=logLik)
+            cost = -logLik * self.KLWeight
+            if cost < bestCost:
+                bestCost = cost
+                bestU = U
+
+            if (samp+1) % 10 == 0:
+                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                    (samp+1,burnIn,cost,bestCost)
+
+        self.U = bestU
+
+    def loglikelihood(self,U):
+        self.U = U        
+        cost = self.SYS.simulatePolicy(self)[1]
+        return -cost / self.KLWeight
