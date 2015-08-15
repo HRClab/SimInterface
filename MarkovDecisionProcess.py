@@ -39,67 +39,66 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
                  timeInvariant = True):
 
         self.timeInvariant = timeInvariant
+
         
         if timeInvariant:
+            if isinstance(B,np.ndarray):
+                if len(B.shape) == 1:
+                    self.NumStates = len(B)
+                    self.NumInputs = 1
+                else:
+                    self.NumStates, self.NumInputs = B.shape
+            else:
+                self.NumStates = 1
+                self.NumInputs = 1
+                
             self.dynamicsMatrix = self.buildDynamicsMatrix(A,B,g)
             self.costMatrix = self.buildCostMatrix(Cxx,Cuu,C11,
                                                    Cxu,Cx1,Cu1)
-        else:
-            Horizon = len(A)
-            if isintance(A[0],np.ndarray):
-                n = A[0].shape[0]
-                self.dynamicsMatrix = np.zeros((Horizon,n,n))
-                self.costMatrix = np.zeros((Horizon,n,n))
-            else:
-                self.dynamicsMatrix = np.zeros(Horizon)
-                # May need to change this later. . . 
-                self.costMatrix = np.zeros((Horizon,n,n))
-                
-            for k in range(Horizon):
-                self.dynamicsMatrix[k] = self.buildDynamicsMatrix(A[k],
-                                                                  B[k],
-                                                                  g[k])
 
-                self.costMatrix[k] = self.buildCostMatrix(Cxx[k],
-                                                          Cuu[k],
-                                                          C11[k],
-                                                          Cxu[k],
-                                                          Cx1[k],
-                                                          Cu1[k])
+        # Deal with time-varying case later
+        # else:
+        #     pass
+        # 
+            # Horizon = len(A)
+            # if isintance(A[0],np.ndarray):
+            #     n = A[0].shape[0]
+            #     self.dynamicsMatrix = np.zeros((Horizon,n,n))
+            #     self.costMatrix = np.zeros((Horizon,n,n))
+            # else:
+            #     self.dynamicsMatrix = np.zeros(Horizon)
+            #     # May need to change this later. . . 
+            #     self.costMatrix = np.zeros((Horizon,n,n))
+                
+            # for k in range(Horizon):
+            #     self.dynamicsMatrix[k] = self.buildDynamicsMatrix(A[k],
+            #                                                       B[k],
+            #                                                       g[k])
+
+            #     self.costMatrix[k] = self.buildCostMatrix(Cxx[k],
+            #                                               Cuu[k],
+            #                                               C11[k],
+            #                                               Cxu[k],
+            #                                               Cx1[k],
+            #                                               Cu1[k])
             
     def buildDynamicsMatrix(self,A,B,g):
         """
         Create a matrix, M, such that
         x[k+1] = M * [1; x; u] (in Matlab Notation)
         """
-        if isinstance(A,np.ndarray):
-            # assume that A is an nxn array
-            n = A.shape[0]
-            gMat = np.reshape(g,(n,1))
-            if len(B.shape) == 1:
-                BMat = np.reshape(g,(n,1))
-            else:
-                BMat = B
-
-            return np.hstack((gMat,A,BMat))
-        else:
-            # Assume that A, B, and g are scalars
-            return np.hstack((g,A,B))
+        n = self.NumStates
+        p = self.NumInputs
+        AMat = np.reshape(A,(n,n))
+        BMat = np.reshape(B,(n,p))
+        gMat = np.reshape(g,(n,1))
+        H = np.hstack((gMat,AMat,BMat))
+        return H
 
 
     def buildCostMatrix(self,Cxx,Cuu,C11,Cxu,Cx1,Cu1):
-        if isinstance(Cxx,np.ndarray):
-            # In this case, Cxx is an nxn array
-            n = Cxx.shape[0]
-            if isintance(Cuu,np.ndarray):
-                # In this case, Cuu is a pxp array
-                p = Cuu.shape[1]
-            else:
-                p = 1
-
-        else:
-            n = 1
-            p = 1
+        n = self.NumStates
+        p = self.NumInputs
         CxxMat = np.reshape(Cxx,(n,n))
         CuuMat = np.reshape(Cuu,(p,p))
         C11Mat = np.reshape(C11,(1,1))
