@@ -157,6 +157,7 @@ class samplingControl(flatOpenLoopPolicy):
                  KLWeight=1,
                  burnIn=0,
                  ExplorationCovariance=1.,
+                 U = None,
                  *args, **kwargs):
 
         flatOpenLoopPolicy.__init__(self,NumInputs=SYS.NumInputs,
@@ -173,8 +174,9 @@ class samplingControl(flatOpenLoopPolicy):
 
         lenW = NoiseGain.shape[0]
 
-        
-        U = np.zeros(lenW)
+        if U is None:
+            U = np.zeros(lenW)
+            
         logLik = self.loglikelihood(U)
         bestCost = np.inf
 
