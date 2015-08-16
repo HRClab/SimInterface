@@ -106,7 +106,7 @@ class modelPredictiveControl(Controller):
     def __init__(self,SYS,predictiveHorizon,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
         self.SYS = SYS
-        self.previousAction = np.zeros(SYS.NumInputs)
+        self.previousAction = np.zeros(SYS.NumInputs).squeeze()
         self.predictiveHorizon = predictiveHorizon
     def action(self,x,k):
         # Currently only supporting time invariant systems
@@ -157,7 +157,7 @@ class samplingControl(flatOpenLoopPolicy):
                  KLWeight=1,
                  burnIn=0,
                  ExplorationCovariance=1.,
-                 U = None,
+                 initialPolicy = None,
                  *args, **kwargs):
 
         flatOpenLoopPolicy.__init__(self,NumInputs=SYS.NumInputs,
@@ -174,7 +174,7 @@ class samplingControl(flatOpenLoopPolicy):
 
         lenW = NoiseGain.shape[0]
 
-        if U is None:
+        if initialPolicy is None:
             U = np.zeros(lenW)
             
         logLik = self.loglikelihood(U)
@@ -196,5 +196,5 @@ class samplingControl(flatOpenLoopPolicy):
 
     def loglikelihood(self,U):
         self.U = U        
-        cost = self.SYS.simulatePolicy(self)[1]
+        cost = self.SYS.simulatePolicy(self)[2]
         return -cost / self.KLWeight

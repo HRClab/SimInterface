@@ -115,7 +115,7 @@ Controllers.append(ctrl.modelPredictiveControl(SYS=sysGenPend,
 Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
                                         Horizon=T,
                                         KLWeight=1e-6,
-                                        burnIn=500,
+                                        burnIn=10,
                                         ExplorationCovariance=10.*\
                                         np.eye(sysGenPend.NumInputs),
                                         label='Sampling'))
@@ -123,6 +123,7 @@ Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
 print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T+1,sysGenPend.NumStates))
+U = np.zeros((NumControllers,T,sysGenPend.NumInputs))
 Cost = np.zeros(NumControllers)
 Time = sysGenPend.dt * np.arange(T+1)
 fig = plt.figure(1)
@@ -136,7 +137,7 @@ MaxLen = sysGenPend.Length.sum()
 for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
-    X[k], Cost[k] = sysGenPend.simulatePolicy(controller)
+    X[k], U[k], Cost[k] = sysGenPend.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
 
     ax = fig.add_subplot(2,2,k+1,autoscale_on=False, aspect = 1,

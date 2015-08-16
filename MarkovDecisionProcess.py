@@ -16,11 +16,15 @@ class MarkovDecisionProcess:
 
     def simulatePolicy(self,policy):
         Horizon = policy.Horizon
-        if isinstance(self.x0,np.ndarray):
-            n = len(self.x0)
-            X = np.zeros((Horizon+1,n))
+        if self.NumStates > 1:
+            X = np.zeros((Horizon+1,self.NumStates))
         else:
             X = np.zeros(Horizon+1)
+            
+        if self.NumInputs > 1:
+            U = np.zeros((Horizon,self.NumInputs))
+        else:
+            U = np.zeros(Horizon)
 
         x = self.x0
         X[0] = x
@@ -29,9 +33,10 @@ class MarkovDecisionProcess:
             u = policy.action(x,k)
             cost = cost + self.costStep(x,u,k)
             x = self.step(x,u,k)
+            U[k] = u
             X[k+1] = x
 
-        return X,cost
+        return X,U,cost
 
 #### Helper functions for Linear Quadratic Systems ####
 
@@ -202,7 +207,6 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         Ad = np.eye(n) + self.dt * A
         Bd = self.dt * B
         gd = self.dt * g
-
         dynMat = buildDynamicsMatrix(Ad,Bd,gd)
         costMat = self.costMat_fun(x,u)
         return dynMat,costMat

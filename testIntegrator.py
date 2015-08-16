@@ -44,6 +44,7 @@ Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T+1))
+U = np.zeros((NumControllers,T))
 Cost = np.zeros(NumControllers)
 T = sys.dt * np.arange(staticCtrl.Horizon+1)
 plt.figure(1)
@@ -55,7 +56,7 @@ print '\nComparing Controllers\n'
 for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
-    X[k], Cost[k] = sys.simulatePolicy(controller)
+    X[k], U[k], Cost[k] = sys.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
     handle = plt.plot(T,X[k],label=name)[0]
     line.append(handle)

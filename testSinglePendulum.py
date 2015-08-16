@@ -49,7 +49,7 @@ Controllers.append(ctrl.staticFunction(func=artificialPotential,
                                        Horizon=T,
                                        label = 'Potential'))
 Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
-                                        KLWeight=1e-5,burnIn=200,
+                                        KLWeight=1e-5,burnIn=500,
                                         ExplorationCovariance = 20.,
                                         label='Sampling'))
 Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
@@ -58,6 +58,7 @@ Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
 #### Prepare the simulations ####
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T+1,2))
+U = np.zeros((NumControllers,T))
 Cost = np.zeros(NumControllers)
 Time = sys.dt * np.arange(T+1)
 plt.figure(1)
@@ -71,7 +72,7 @@ print '\nComparing Controllers\n'
 for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
-    X[k], Cost[k] = sys.simulatePolicy(controller)
+    X[k], U[k], Cost[k] = sys.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
     handle = plt.plot(Time,np.sin(X[k][:,0]),label=name)[0]
     line.append(handle)
