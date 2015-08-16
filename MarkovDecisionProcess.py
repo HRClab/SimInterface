@@ -48,30 +48,25 @@ def shapeFromB(B):
 
     return n,p
 
-def buildDynamicsMatrix(A=0,B=0,g=0,timeInvariant=True):
+def castToShape(M,Shape):
+    if (not isinstance(M,np.ndarray)) and (np.prod(Shape)>1):
+        MCast = np.zeros(Shape)
+    else:
+        MCast = np.reshape(M,Shape)
+    return MCast
+
+def buildDynamicsMatrix(A=0,B=0,g=0):
     """
     Create a matrix, M, such that
     x[k+1] = M * [1; x; u] (in Matlab Notation)
+
+    Currently only dealing with time invariant case
     """
-    if timeInvariant:
-        n,p = shapeFromB(B)
-        AMat = np.reshape(A,(n,n))
-        BMat = np.reshape(B,(n,p))
-        if g == 0:
-            gMat = np.zeros((n,1))
-        else:
-            gMat = np.reshape(g,(n,1))
-        H = np.hstack((gMat,AMat,BMat))
-    else:
-        T = A.shape[0]
-        n,p = shapeFromB(B[0])
-        AMat = np.reshape(A,(T,n,n))
-        BMat = np.reshape(B,(T,n,p))
-        if g == 0:
-            gMat = np.zeros((T,n,1))
-        else:
-            gMat = np.reshape(g,(T,n,1))
-        H = np.concatenate((gMat,AMat,BMat),axis=2)
+    n,p = shapeFromB(B)
+    AMat = np.reshape(A,(n,n))
+    BMat = np.reshape(B,(n,p))
+    gMat = castToShape(g,(n,1))
+    H = np.hstack((gMat,AMat,BMat))
     return H
 
 def shapeFromSquareMatrix(M):
@@ -86,31 +81,33 @@ def shapeFromQR(Q,R):
     p = shapeFromSquareMatrix(R)
     return n,p
 
-def castToShape(M,Shape):
-    if (not isinstance(M,np.ndarray)) and (np.prod(Shape)>1):
-        MCast = np.zeros(Shape)
-    else:
-        MCast = np.reshape(M,Shape)
-    return MCast
 
-def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0,timeInvariant=True):
-    if timeInvariant:
-        n,p = shapeFromQR(Cxx,Cxu)
-        CxxMat = castToShape(Cxx,(n,n))
-        CuuMat = castToShape(Cuu,(p,p))
-        C11Mat = castToShape(C11,(1,1))
-        CxuMat = castToShape(Cxu,(n,p))
-        CuxMat = CxuMat.T
-        Cx1Mat = castToShape(Cx1,(n,1))
-        C1xMat = Cx1Mat.T
-        Cu1Mat = castToShape(Cu1,(p,1))
-        C1uMat = Cu1Mat.T
+def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0):
+    """
+    Build a matrix so the step cost can be written as 
 
-        C = np.vstack((np.hstack((C11Mat,C1xMat,C1uMat)),
-                       np.hstack((Cx1Mat,CxxMat,CxuMat)),
-                       np.hstack((Cu1Mat,CuxMat,CuuMat))))
+    stepCost = [1]'[C11 C1x C1u][1] 
+               [x] [Cx1 Cxx Cxu][x]
+               [u] [Cu1 Cux Cuu][u]
 
-        # deal with time-varying case later.
+    Currently, only handling the the time-invariant case
+    
+    """
+    n,p = shapeFromQR(Cxx,Cxu)
+    CxxMat = castToShape(Cxx,(n,n))
+    CuuMat = castToShape(Cuu,(p,p))
+    C11Mat = castToShape(C11,(1,1))
+    CxuMat = castToShape(Cxu,(n,p))
+    CuxMat = CxuMat.T
+    Cx1Mat = castToShape(Cx1,(n,1))
+    C1xMat = Cx1Mat.T
+    Cu1Mat = castToShape(Cu1,(p,1))
+    C1uMat = Cu1Mat.T
+
+    C = np.vstack((np.hstack((C11Mat,C1xMat,C1uMat)),
+                   np.hstack((Cx1Mat,CxxMat,CxuMat)),
+                   np.hstack((Cu1Mat,CuxMat,CuuMat))))
+    
     return C
 
 #### Basic Linear Quadratic System #### 
@@ -173,8 +170,24 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         else:
             self.x0 = x0
 
-        # Currently only deals with time-invariant costs
+        # Compute cost and approximations 
         self.cost_fun = su.functify(cost,(x,u))
+        z = np.hstack((x,u))
+        grad = su.jacobian(cost,z)
+        hes = su.jacobian(grad,z)
+
+        C11 = cost - np.dot(grad,z) - .5*np.dot(z,np.dot(hes,z))
+        C1z = .5 * grad - .5 * np.dot(hes,z)
+        Czz = .5 * hes
+
+        C11Mat = np.reshape(C11,(1,1))
+        C1zMat = np.reshape(C1z,(1,len(z)))
+        Cz1Mat = C1zMat.T
+
+        CostMat = np.vstack((np.hstack((C11Mat,C1zMat)),
+                             np.hstack((Cz1Mat,Czz))))
+
+        self.costMat_fun = su.functify(CostMat,(x,u))
         
         lag.lagrangian_system.__init__(self,T,V,fric,x)
     def step(self,x,u,k):
@@ -182,3 +195,14 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
 
     def costStep(self,x,u,k):
         return self.cost_fun(x,u)
+
+    def getApproximationMatrices(self,x,u,k=0):
+        n = len(x)
+        A,B,g = self.linearization(x,u)
+        Ad = np.eye(n) + self.dt * A
+        Bd = self.dt * B
+        gd = self.dt * g
+
+        dynMat = buildDynamicsMatrix(Ad,Bd,gd)
+        costMat = self.costMat_fun(x,u)
+        return dynMat,costMat
