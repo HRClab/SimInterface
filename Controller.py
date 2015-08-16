@@ -112,18 +112,25 @@ class modelPredictiveControl(Controller):
         # Currently only supporting time invariant systems
         # It will probably be weird if a time-varying system is used.
         # This will need to be updated for consistency with nonlinear systems
-        dynMat,costMat = self.SYS.getApproximationMatrices(x,
-                                                           self.previousAction,
-                                                           k)
-        predictiveSystem = MDP.LinearQuadraticSystem(dynMat,
-                                                     costMat,
-                                                     self.SYS.timeInvariant)
-        predictiveController = linearQuadraticRegulator(predictiveSystem,
-                                                        Horizon = self.predictiveHorizon)
+        predictiveController = approximateLQR(self.SYS,
+                                              x,
+                                              self.previousAction,
+                                              k,
+                                              Horizon=self.predictiveHorizon)
+        # dynMat,costMat = self.SYS.getApproximationMatrices(x,
+        #                                                    self.previousAction,
+        #                                                    k)
+        # predictiveSystem = MDP.LinearQuadraticSystem(dynMat,
+        #                                              costMat,
+        #                                              self.SYS.timeInvariant)
+        # predictiveController = linearQuadraticRegulator(predictiveSystem,
+        #                                                 Horizon = self.predictiveHorizon)
 
         curVec = np.hstack((1,x))
         gain = predictiveController.Gain[0]
-        return np.dot(gain,curVec)
+        u = np.dot(gain,curVec)
+        self.previousAction = u
+        return u
 
 class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
@@ -132,7 +139,6 @@ class approximateLQR(linearQuadraticRegulator):
         p = SYS.NumInputs
         # Convexify, assuming that the non-convexity is due to the
         # state cost.
-        print costMat
         eigMin = eigh(costMat[1:n+1,1:n+1],eigvals_only=True,eigvals=(0,0))[0]
         if eigMin < 0:
             alpha = -1.1 * eigMin

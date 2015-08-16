@@ -24,7 +24,7 @@ class pendulum(MDP.LagrangianSystem):
         # Must start a bit away from equilibrium
         # Otherwise some controllers, such as the artificial
         # potential function, have problems
-        x0 = np.array([np.pi/2+.5,0])
+        x0 = np.array([0,0])
         cost = dt * (u*u + 100 * (1 - sym.sin(q)))
         MDP.LagrangianSystem.__init__(self,T,V,fric,cost,x,u,dt,x0)
 
@@ -42,19 +42,22 @@ def artificialPotential(x):
 
 #### Make a List of Controllers #####
 
-T = 50
+T = 100
 Controllers = []
 
 Controllers.append(ctrl.staticFunction(func=artificialPotential,
                                        Horizon=T,
                                        label = 'Potential'))
 Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
-                                        KLWeight=1e-4,burnIn=10,
+                                        KLWeight=1e-4,burnIn=100,
                                         ExplorationCovariance = 10.,
                                         label='Sampling'))
 Controllers.append(ctrl.approximateLQR(SYS=sys,Horizon=T,
                                        x=sys.x0,u=0,label='Linearization'))
 
+Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
+                                               predictiveHorizon=10,
+                                               label='MPC'))
 #### Prepare the simulations ####
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T+1,2))
