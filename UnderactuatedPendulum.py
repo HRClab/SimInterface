@@ -107,7 +107,6 @@ class UnderactuatedPendulum:
 
         line = ax.plot([],[],lw=2)[0]
         lineTarget = ax.plot([],[],'r*')[0]
-
         Joints = np.zeros((2,3))
 
         def init():

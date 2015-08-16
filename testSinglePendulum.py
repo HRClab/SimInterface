@@ -49,12 +49,9 @@ Controllers.append(ctrl.staticFunction(func=artificialPotential,
                                        Horizon=T,
                                        label = 'Potential'))
 Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
-                                        KLWeight=1e-4,burnIn=100,
-                                        ExplorationCovariance = 10.,
+                                        KLWeight=1e-5,burnIn=200,
+                                        ExplorationCovariance = 20.,
                                         label='Sampling'))
-Controllers.append(ctrl.approximateLQR(SYS=sys,Horizon=T,
-                                       x=sys.x0,u=0,label='Linearization'))
-
 Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
                                                predictiveHorizon=10,
                                                label='MPC'))

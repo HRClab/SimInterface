@@ -106,7 +106,7 @@ class modelPredictiveControl(Controller):
     def __init__(self,SYS,predictiveHorizon,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
         self.SYS = SYS
-        self.previousAction = 0
+        self.previousAction = np.zeros(SYS.NumInputs)
         self.predictiveHorizon = predictiveHorizon
     def action(self,x,k):
         # Currently only supporting time invariant systems
@@ -173,6 +173,7 @@ class samplingControl(flatOpenLoopPolicy):
 
         lenW = NoiseGain.shape[0]
 
+        
         U = np.zeros(lenW)
         logLik = self.loglikelihood(U)
         bestCost = np.inf
