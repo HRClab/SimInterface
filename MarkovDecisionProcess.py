@@ -1,4 +1,6 @@
 import numpy as np
+import pylagrange as lag
+import sympy_utils as su
 
 class MarkovDecisionProcess:
     def __init__(self):
@@ -30,6 +32,8 @@ class MarkovDecisionProcess:
             X[k+1] = x
 
         return X,cost
+
+#### Helper functions for Linear Quadratic Systems ####
 
 def shapeFromB(B):
     if isinstance(B,np.ndarray):
@@ -109,6 +113,7 @@ def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0,timeInvariant=True):
         # deal with time-varying case later.
     return C
 
+#### Basic Linear Quadratic System #### 
 
 class LinearQuadraticSystem(MarkovDecisionProcess):
     """
@@ -154,3 +159,26 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
             return self.dynamicsMatrix[k:], self.costMatrix[k:]
         
 
+
+class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
+    """
+    A Lagrangian system constructed from symbolic 
+    """
+    def __init__(self,T=0,V=0,fric=0,cost=0,x=0,u=0,dt=0.01,x0=None):
+        self.dt = dt
+        self.NumStates = len(x)
+        self.NumInputs = self.NumStates / 2
+        if x0 is None:
+            self.x0 = np.zeros(self.NumStates)
+        else:
+            self.x0 = x0
+
+        # Currently only deals with time-invariant costs
+        self.cost_fun = su.functify(cost,(x,u))
+        
+        lag.lagrangian_system.__init__(self,T,V,fric,x)
+    def step(self,x,u,k):
+        return self.stepEuler(x,u,self.dt)
+
+    def costStep(self,x,u,k):
+        return self.cost_fun(x,u)

@@ -43,8 +43,8 @@ mpcCtrl = ctrl.modelPredictiveControl(SYS=sys,
 Controllers.append(mpcCtrl)
 
 samplingCtrl = ctrl.samplingControl(SYS=sys,Horizon=T,
-                                    KLWeight=1e-5,burnIn=500,
-                                    ExplorationCovariance = 3.,
+                                    KLWeight=1e-0,burnIn=100,
+                                    ExplorationCovariance = 10.,
                                     label='Sampling')
 Controllers.append(samplingCtrl)
 

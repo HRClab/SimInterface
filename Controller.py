@@ -41,6 +41,15 @@ class staticGain(Controller):
         u = np.dot(self.gain,x)
         return u
 
+class staticFunction(Controller):
+    def __init__(self,func,*args,**kwargs):
+        self.func = func
+        Controller.__init__(self,*args,**kwargs)
+        
+    def action(self,x,k):
+        u = self.func(x)
+        return u
+        
 def schurComplement(M,p):
     A = M[:-p,:-p]
     B = M[:-p,-p:]
