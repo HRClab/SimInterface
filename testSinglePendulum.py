@@ -45,12 +45,15 @@ def artificialPotential(x):
 T = 100
 Controllers = []
 
-Controllers.append(ctrl.staticFunction(func=artificialPotential,
-                                       Horizon=T,
-                                       label = 'Potential'))
+potentialCtrl = ctrl.staticFunction(func=artificialPotential,
+                                    Horizon=T,
+                                    label = 'Potential')
+Controllers.append(potentialCtrl)
+
 Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
-                                        KLWeight=1e-5,burnIn=500,
-                                        ExplorationCovariance = 20.,
+                                        KLWeight=1e-5,burnIn=20,
+                                        ExplorationCovariance = 1.,
+                                        initialPolicy = potentialCtrl,
                                         label='Sampling'))
 Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
                                                predictiveHorizon=10,

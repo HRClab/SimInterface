@@ -176,6 +176,8 @@ class samplingControl(flatOpenLoopPolicy):
 
         if initialPolicy is None:
             U = np.zeros(lenW)
+        else:
+            U = SYS.simulatePolicy(initialPolicy)[1].flatten()
             
         logLik = self.loglikelihood(U)
         bestCost = np.inf

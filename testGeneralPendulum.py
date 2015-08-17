@@ -17,8 +17,8 @@ class pendulum(MDP.LagrangianSystem):
         dt = 0.05
         n = 3
         self.NumLinks = n
-        self.Mass = np.array([1,.9,.7])
-        self.Length = np.array([1,.8,.5])
+        self.Mass = np.ones(n) 
+        self.Length = np.ones(n) 
         g = 10.
 
         q = sym.symarray('q',n)
@@ -26,8 +26,9 @@ class pendulum(MDP.LagrangianSystem):
         x = np.hstack((q,dq))
         u = sym.symarray('u',n)
 
-        target = np.array([0,2.0])
+        target = np.array([0,0.8 * self.Length.sum()])
         x0 = np.zeros(2*n)
+        x0[0] = -np.pi / 2 + .1
         self.target = target
         # cartesian position
     
@@ -60,7 +61,7 @@ class pendulum(MDP.LagrangianSystem):
         # Cost
         EnergyCost = np.dot(u,u)
         targetError = target - pos[:,-1]
-        targetCost = 10000 * np.dot(targetError,targetError)
+        targetCost = 100000 * np.dot(targetError,targetError)
         speedCost = 10 * np.dot(dq,dq)
 
         Cost = dt * (EnergyCost + targetCost + speedCost)
@@ -104,21 +105,25 @@ Controllers = []
 Controllers.append(ctrl.staticGain(gain=np.zeros((sysGenPend.NumInputs,sysGenPend.NumStates)),
                                    Horizon=T,label='Open Loop'))
 
-Controllers.append(ctrl.staticFunction(func=impedanceCtrlFunc,Horizon=T,
-                                       label='Impedance Control'))
+impedanceCtrl = ctrl.staticFunction(func=impedanceCtrlFunc,Horizon=T,
+                                    label='Impedance Control')
+Controllers.append(impedanceCtrl)
 
-Controllers.append(ctrl.modelPredictiveControl(SYS=sysGenPend,
-                                               Horizon=T,
-                                               predictiveHorizon=10,
-                                               label='MPC'))
+mpcCtrl = ctrl.modelPredictiveControl(SYS=sysGenPend,
+                                      Horizon=T,
+                                      predictiveHorizon=10,
+                                      label='MPC')
+Controllers.append(mpcCtrl)
 
 Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
                                         Horizon=T,
-                                        KLWeight=1e-6,
-                                        burnIn=10,
-                                        ExplorationCovariance=10.*\
+                                        KLWeight=1e-5,
+                                        burnIn=10000,
+                                        ExplorationCovariance=25.*\
                                         np.eye(sysGenPend.NumInputs),
+                                        initialPolicy = impedanceCtrl,
                                         label='Sampling'))
+
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
