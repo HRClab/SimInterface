@@ -15,7 +15,7 @@ class pendulum(MDP.LagrangianSystem):
     """
     def __init__(self):
         dt = 0.05
-        n = 3
+        n = 2
         self.NumLinks = n
         self.Mass = np.ones(n) 
         self.Length = np.ones(n) 
@@ -99,7 +99,7 @@ def impedanceCtrlFunc(x):
 
 print 'Initializing the Controllers'
 
-T = 50
+T = 20
 Controllers = []
 
 Controllers.append(ctrl.staticGain(gain=np.zeros((sysGenPend.NumInputs,sysGenPend.NumStates)),
@@ -118,7 +118,7 @@ Controllers.append(mpcCtrl)
 Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
                                         Horizon=T,
                                         KLWeight=1e-5,
-                                        burnIn=10000,
+                                        burnIn=10,
                                         ExplorationCovariance=25.*\
                                         np.eye(sysGenPend.NumInputs),
                                         initialPolicy = impedanceCtrl,
@@ -127,10 +127,10 @@ Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T+1,sysGenPend.NumStates))
+X = np.zeros((NumControllers,T,sysGenPend.NumStates))
 U = np.zeros((NumControllers,T,sysGenPend.NumInputs))
 Cost = np.zeros(NumControllers)
-Time = sysGenPend.dt * np.arange(T+1)
+Time = sysGenPend.dt * np.arange(T)
 fig = plt.figure(1)
 plt.clf()
 line = []

@@ -43,10 +43,10 @@ samplingCtrl = ctrl.samplingControl(SYS=sys,Horizon=T,
 Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T+1))
+X = np.zeros((NumControllers,T))
 U = np.zeros((NumControllers,T))
 Cost = np.zeros(NumControllers)
-T = sys.dt * np.arange(staticCtrl.Horizon+1)
+T = sys.dt * np.arange(staticCtrl.Horizon)
 plt.figure(1)
 plt.clf()
 line = []

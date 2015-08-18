@@ -60,10 +60,10 @@ Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
                                                label='MPC'))
 #### Prepare the simulations ####
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T+1,2))
+X = np.zeros((NumControllers,T,2))
 U = np.zeros((NumControllers,T))
 Cost = np.zeros(NumControllers)
-Time = sys.dt * np.arange(T+1)
+Time = sys.dt * np.arange(T)
 plt.figure(1)
 plt.clf()
 line = []

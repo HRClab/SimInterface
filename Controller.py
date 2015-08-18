@@ -134,20 +134,7 @@ class modelPredictiveControl(Controller):
 
 class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
-        dynMat,costMat = SYS.getApproximationMatrices(x,u,k)
-        n = SYS.NumStates
-        p = SYS.NumInputs
-        # Convexify, assuming that the non-convexity is due to the
-        # state cost.
-        eigMin = eigh(costMat[1:n+1,1:n+1],eigvals_only=True,eigvals=(0,0))[0]
-        if eigMin < 0:
-            alpha = -1.1 * eigMin
-            xMat = np.reshape(x,(n,1))
-            xSqMat = np.reshape(np.dot(x,x),(1,1))
-            costMat[:n+1,:n+1] += alpha * \
-                                  np.vstack((np.hstack((xSqMat,-xMat.T)),
-                                             np.hstack((-xMat,np.eye(n)))))
-                                                    
+        dynMat,costMat = MDP.convexApproximationMatrices(SYS,x,u,k)             
         approxSYS = MDP.LinearQuadraticSystem(dynMat,costMat)
         linearQuadraticRegulator.__init__(self,SYS=approxSYS,*args,**kwargs)
         
