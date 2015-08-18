@@ -124,7 +124,7 @@ Controllers.append(samplingCtrl)
 sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
                                initialPolicy = samplingCtrl,
                                Horizon = T,
-                               regularizationWeight=200,
+                               regularizationWeight=100,
                                label='Sampling->iLQR')
 
 Controllers.append(sampleIlqr)
@@ -143,7 +143,7 @@ Controllers.append(sampleIlqrSample)
 sampleIlqrSampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
                                          initialPolicy = sampleIlqrSample,
                                          Horizon = T,
-                                         regularizationWeight=10,
+                                         regularizationWeight=.5,
                                          label='Sampling->iLQR->Sampling-iLQR')
 
 Controllers.append(sampleIlqrSampleIlqr)
