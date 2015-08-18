@@ -59,10 +59,12 @@ class pendulum(MDP.LagrangianSystem):
         fric = 1 * dq
 
         # Cost
-        EnergyCost = np.dot(u,u)
+        EnergyCost = 0.01 * np.dot(u,u)
         targetError = target - pos[:,-1]
-        targetCost = 100000 * np.dot(targetError,targetError)
-        speedCost = 10 * np.dot(dq,dq)
+        targetCost = 1000 * np.dot(targetError,targetError)
+        speedCost = 0.1 * np.dot(dq,dq)
+
+
 
         Cost = dt * (EnergyCost + targetCost + speedCost)
 
@@ -99,36 +101,50 @@ def impedanceCtrlFunc(x):
 
 print 'Initializing the Controllers'
 
-T = 20
+T = 50
 Controllers = []
 
-Controllers.append(ctrl.staticGain(gain=np.zeros((sysGenPend.NumInputs,sysGenPend.NumStates)),
-                                   Horizon=T,label='Open Loop'))
 
 impedanceCtrl = ctrl.staticFunction(func=impedanceCtrlFunc,Horizon=T,
                                     label='Impedance Control')
+
+
 Controllers.append(impedanceCtrl)
 
-mpcCtrl = ctrl.modelPredictiveControl(SYS=sysGenPend,
-                                      Horizon=T,
-                                      predictiveHorizon=10,
-                                      label='MPC')
-Controllers.append(mpcCtrl)
+ilqrCtrl = ctrl.iterativeLQR(sysGenPend,impedanceCtrl,
+                             Horizon=T,regularizationWeight=100,label='iLQR')
 
-Controllers.append(ctrl.samplingControl(SYS=sysGenPend,
-                                        Horizon=T,
-                                        KLWeight=1e-5,
-                                        burnIn=10,
-                                        ExplorationCovariance=25.*\
-                                        np.eye(sysGenPend.NumInputs),
-                                        initialPolicy = impedanceCtrl,
-                                        label='Sampling'))
+Controllers.append(ilqrCtrl)
+
+# mpcCtrl = ctrl.modelPredictiveControl(SYS=sysGenPend,
+#                                       Horizon=T,
+#                                       predictiveHorizon=7,
+#                                       label='MPC')
+# Controllers.append(mpcCtrl)
+
+samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
+                                    Horizon=T,
+                                    KLWeight=1e-5,
+                                    burnIn=1000,
+                                    ExplorationCovariance=25.*\
+                                    np.eye(sysGenPend.NumInputs),
+                                    initialPolicy = impedanceCtrl,
+                                    label='Sampling')
+Controllers.append(samplingCtrl)
+
+sampleILQR = ctrl.iterativeLQR(SYS=sysGenPend,
+                               initialPolicy = samplingCtrl,
+                               Horizon = T,
+                               regularizationWeight=1000,
+                               label='Sampling->iLQR')
+
+Controllers.append(sampleILQR)
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T,sysGenPend.NumStates))
-U = np.zeros((NumControllers,T,sysGenPend.NumInputs))
+X = np.zeros((NumControllers,T,sysGenPend.NumStates)).squeeze()
+U = np.zeros((NumControllers,T,sysGenPend.NumInputs)).squeeze()
 Cost = np.zeros(NumControllers)
 Time = sysGenPend.dt * np.arange(T)
 fig = plt.figure(1)

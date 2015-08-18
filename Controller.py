@@ -82,6 +82,8 @@ class linearQuadraticRegulator(Controller):
         else:
             costMat = sys.costMatrix[-1]
         self.RiccatiSolution[-1] = schurComplement(costMat,p)
+        self.RiccatiSolution[-1] = .5*(self.RiccatiSolution[-1]+\
+                                       self.RiccatiSolution[-1].T)
         self.Gain[-1] = gainMatrix(costMat,p)
         
         for k in range(self.Horizon-1)[::-1]:
@@ -93,8 +95,18 @@ class linearQuadraticRegulator(Controller):
 
             Ric = self.RiccatiSolution[k+1]
             M = costMat + np.dot(bigDynMat.T,np.dot(Ric,bigDynMat))
-            self.RiccatiSolution[k] = schurComplement(M,p)
+            M = .5*(M+M.T)
+            # Somehow this works even when M is not positive semidefinite
+            # But that could only happen if the problem is poorly conditioned
+            
+            newRic = schurComplement(M,p)
+            self.RiccatiSolution[k] = .5*(newRic+newRic.T)
             self.Gain[k] = gainMatrix(M,p)
+
+            # print 'Cost: %g Ric: %g M: %g' % (minEigCost,minEigRic,minEigM)
+
+            # if minEigM < 0:
+            #     print M
 
         self.Gain = self.Gain.squeeze()
 
@@ -117,14 +129,6 @@ class modelPredictiveControl(Controller):
                                               self.previousAction,
                                               k,
                                               Horizon=self.predictiveHorizon)
-        # dynMat,costMat = self.SYS.getApproximationMatrices(x,
-        #                                                    self.previousAction,
-        #                                                    k)
-        # predictiveSystem = MDP.LinearQuadraticSystem(dynMat,
-        #                                              costMat,
-        #                                              self.SYS.timeInvariant)
-        # predictiveController = linearQuadraticRegulator(predictiveSystem,
-        #                                                 Horizon = self.predictiveHorizon)
 
         curVec = np.hstack((1,x))
         gain = predictiveController.Gain[0]
@@ -132,10 +136,61 @@ class modelPredictiveControl(Controller):
         self.previousAction = u
         return u
 
+class iterativeLQR(linearQuadraticRegulator):
+    def __init__(self,SYS,initialPolicy = None,Horizon=1,
+                 regularizationWeight=100,
+                 *args,**kwargs):
+        self.Horizon = Horizon
+        if initialPolicy is None:
+            gain = np.zeros((SYS.NumStates,Sys.NumInputs)).squeeze()
+            initialPolicy = staticGain(gain=gain,Horizon=Horizon)
+        else:
+            self.Horizon = initialPolicy.Horizon
+
+        X,U,cost = SYS.simulatePolicy(initialPolicy)
+
+        eps = 1e-1
+
+        costChange = np.inf
+
+        # Cost regularization Parameters
+        alpha = regularizationWeight
+
+        acceptApproximation = True
+        
+        while np.abs(costChange) > eps:
+            print 'iLQR cost: %g, costChange %g' % (cost,costChange)
+            if acceptApproximation:
+                approxSys = MDP.buildApproximateLQSystem(SYS,X,U)
+                
+            for k in range(self.Horizon):
+                curCost = approxSys.costMatrix[k]
+                z = np.hstack((X[k],U[k]))
+                z = np.reshape(z,(len(z),1))
+                approxSys.costMatrix[k] += alpha * \
+                                           np.vstack(
+                                               (np.hstack((np.dot(z.T,z),
+                                                           -z.T)),
+                                                np.hstack((-z,np.eye(len(z))))))
+            linearQuadraticRegulator.__init__(self,
+                                              SYS=approxSys,
+                                              Horizon=self.Horizon,
+                                              *args,**kwargs)
+
+            newX,newU,newCost = SYS.simulatePolicy(self)
+            costChange = newCost-cost
+            acceptApproximation = True
+            X = newX
+            U = newU
+            cost = newCost
+                
+        
+    
 class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
-        dynMat,costMat = MDP.convexApproximationMatrices(SYS,x,u,k)             
-        approxSYS = MDP.LinearQuadraticSystem(dynMat,costMat)
+        dynMat,costMat = MDP.convexApproximationMatrices(SYS,x,u,k)
+            
+        approxSYS = MDP.LinearQuadraticSystem(dynMat,costMat,x0=x)
         linearQuadraticRegulator.__init__(self,SYS=approxSYS,*args,**kwargs)
         
 class samplingControl(flatOpenLoopPolicy):

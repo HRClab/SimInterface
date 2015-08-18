@@ -124,8 +124,12 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
     A discrete-time linear dynamical system with a quadratic cost.
 
     """
-    def __init__(self,dynamicsMatrix,costMatrix,timeInvariant=True):
+    def __init__(self,dynamicsMatrix,costMatrix,timeInvariant=True,x0=None):
+
         self.dynamicsMatrix = dynamicsMatrix
+
+        
+
         self.costMatrix = costMatrix
         self.timeInvariant = timeInvariant
         if timeInvariant:
@@ -135,6 +139,12 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
         self.NumStates = dynamicsMatrix.shape[shapeOffset]
         self.NumInputs = dynamicsMatrix.shape[shapeOffset + 1] - \
                          self.NumStates - 1
+
+        if x0 is None:
+            self.x0 = np.zeros(self.NumStates).squeeze()
+        else:
+            self.x0 = x0
+            
 
     def step(self,x,u,k):
         if self.timeInvariant:
@@ -167,16 +177,28 @@ def convexApproximationMatrices(SYS,x,u,k):
     n = SYS.NumStates
     p = SYS.NumInputs
 
-    # Check if state cost causes non-convexity and then apply
+
+    # Check cost matrix is not convex and then apply
     # a little hack to fix it
+
+    # eps = 1e-3
+
+    # w,v = eigh(costMat)
+
+    # w[w<=eps] = eps
+
+    # costMat = np.dot(v,np.dot(np.diag(w),v.T))
+    
     eigMin = eigh(costMat[1:n+1,1:n+1],eigvals_only=True,eigvals=(0,0))[0]
     if eigMin < 0:
+        z = x.reshape((n,1))
         alpha = -1.1 * eigMin
-        xMat = np.reshape(x,(n,1))
-        xSqMat = np.reshape(np.dot(x,x),(1,1))
         costMat[:n+1,:n+1] += alpha * \
-                              np.vstack((np.hstack((xSqMat,-xMat.T)),
-                                         np.hstack((-xMat,np.eye(n)))))
+                              np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
+                                         np.hstack((-z,np.eye(n)))))
+
+    # print eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
+
     return dynMat,costMat
 
 def buildApproximateLQSystem(SYS,X,U):
@@ -192,7 +214,7 @@ def buildApproximateLQSystem(SYS,X,U):
     costMat = np.zeros((Horizon,NumStepVars,NumStepVars))
     for k in range(Horizon):
         dynMat[k],costMat[k] = convexApproximationMatrices(SYS,X[k],U[k],k)
-    return LinearQuadraticSystem(dynMat,costMat,timeInvariant=False)
+    return LinearQuadraticSystem(dynMat,costMat,timeInvariant=False,x0=SYS.x0)
 
 class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
     """
