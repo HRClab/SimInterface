@@ -101,22 +101,16 @@ def impedanceCtrlFunc(x):
 
 print 'Initializing the Controllers'
 
-T = 50
+T = 30
 Controllers = []
 
-ilqrCtrl = ctrl.iterativeLQR(SYS=sysGenPend,
-                             initialPolicy=None,
-                             Horizon=T,
-                             regularizationWeight=100,
-                             label='iLQR')
+# ilqrCtrl = ctrl.iterativeLQR(SYS=sysGenPend,
+#                              initialPolicy=None,
+#                              Horizon=T,
+#                              regularizationWeight=100,
+#                              label='iLQR')
 
-Controllers.append(ilqrCtrl)
-
-# mpcCtrl = ctrl.modelPredictiveControl(SYS=sysGenPend,
-#                                       Horizon=T,
-#                                       predictiveHorizon=7,
-#                                       label='MPC')
-# Controllers.append(mpcCtrl)
+# Controllers.append(ilqrCtrl)
 
 samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
                                     Horizon=T,
@@ -127,13 +121,32 @@ samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
                                     label='Sampling')
 Controllers.append(samplingCtrl)
 
-sampleILQR = ctrl.iterativeLQR(SYS=sysGenPend,
+sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
                                initialPolicy = samplingCtrl,
                                Horizon = T,
-                               regularizationWeight=1000,
+                               regularizationWeight=200,
                                label='Sampling->iLQR')
 
-Controllers.append(sampleILQR)
+Controllers.append(sampleIlqr)
+
+sampleIlqrSample = ctrl.samplingControl(SYS=sysGenPend,
+                                        initialPolicy = sampleIlqr,
+                                        Horizon=T,
+                                        KLWeight=1e-5,
+                                        burnIn=1000,
+                                        ExplorationCovariance=25.*\
+                                        np.eye(sysGenPend.NumInputs),
+                                        label='Sampling->iLQR->Sampling')
+
+Controllers.append(sampleIlqrSample)
+
+sampleIlqrSampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
+                                         initialPolicy = sampleIlqrSample,
+                                         Horizon = T,
+                                         regularizationWeight=10,
+                                         label='Sampling->iLQR->Sampling-iLQR')
+
+Controllers.append(sampleIlqrSampleIlqr)
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'

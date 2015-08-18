@@ -179,16 +179,7 @@ def convexApproximationMatrices(SYS,x,u,k):
 
 
     # Check cost matrix is not convex and then apply
-    # a little hack to fix it
-
-    # eps = 1e-3
-
-    # w,v = eigh(costMat)
-
-    # w[w<=eps] = eps
-
-    # costMat = np.dot(v,np.dot(np.diag(w),v.T))
-    
+    # a little hack to fix it    
     eigMin = eigh(costMat[1:n+1,1:n+1],eigvals_only=True,eigvals=(0,0))[0]
     if eigMin < 0:
         z = x.reshape((n,1))
@@ -197,6 +188,15 @@ def convexApproximationMatrices(SYS,x,u,k):
                               np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
                                          np.hstack((-z,np.eye(n)))))
 
+    eigMin = eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
+    if eigMin < 0:
+        z = np.hstack((x,u)).reshape((n+p,1))
+        alpha = -1.1 * eigMin
+        costMat += alpha * \
+                   np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
+                              np.hstack((-z,np.eye(n+p)))))
+
+        
     # print eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
 
     return dynMat,costMat
