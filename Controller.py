@@ -142,7 +142,7 @@ class iterativeLQR(linearQuadraticRegulator):
                  *args,**kwargs):
         self.Horizon = Horizon
         if initialPolicy is None:
-            gain = np.zeros((SYS.NumStates,Sys.NumInputs)).squeeze()
+            gain = np.zeros((SYS.NumInputs,SYS.NumStates)).squeeze()
             initialPolicy = staticGain(gain=gain,Horizon=Horizon)
         else:
             self.Horizon = initialPolicy.Horizon

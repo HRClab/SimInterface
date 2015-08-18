@@ -104,15 +104,11 @@ print 'Initializing the Controllers'
 T = 50
 Controllers = []
 
-
-impedanceCtrl = ctrl.staticFunction(func=impedanceCtrlFunc,Horizon=T,
-                                    label='Impedance Control')
-
-
-Controllers.append(impedanceCtrl)
-
-ilqrCtrl = ctrl.iterativeLQR(sysGenPend,impedanceCtrl,
-                             Horizon=T,regularizationWeight=100,label='iLQR')
+ilqrCtrl = ctrl.iterativeLQR(SYS=sysGenPend,
+                             initialPolicy=None,
+                             Horizon=T,
+                             regularizationWeight=100,
+                             label='iLQR')
 
 Controllers.append(ilqrCtrl)
 
@@ -128,7 +124,6 @@ samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
                                     burnIn=1000,
                                     ExplorationCovariance=25.*\
                                     np.eye(sysGenPend.NumInputs),
-                                    initialPolicy = impedanceCtrl,
                                     label='Sampling')
 Controllers.append(samplingCtrl)
 
