@@ -148,7 +148,7 @@ class iterativeLQR(linearQuadraticRegulator):
 
         X,U,cost = SYS.simulatePolicy(initialPolicy)
 
-        eps = 1e-1
+        eps = 1e-2
 
         costChange = np.inf
 
