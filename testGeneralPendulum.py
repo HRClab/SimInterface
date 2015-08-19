@@ -115,7 +115,7 @@ Controllers = []
 samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
                                     Horizon=T,
                                     KLWeight=1e-4,
-                                    burnIn=100,
+                                    burnIn=1000,
                                     ExplorationCovariance=10.*\
                                     np.eye(sysGenPend.NumInputs),
                                     label='Sampling')
@@ -153,11 +153,6 @@ X = np.zeros((NumControllers,T,sysGenPend.NumStates)).squeeze()
 U = np.zeros((NumControllers,T,sysGenPend.NumInputs)).squeeze()
 Cost = np.zeros(NumControllers)
 Time = sysGenPend.dt * np.arange(T)
-fig = plt.figure(1)
-plt.clf()
-line = []
-lineTarget = []
-MaxLen = sysGenPend.Length.sum()
 
 #### Simulate all of the controllers #### 
 
@@ -167,30 +162,46 @@ for k in range(NumControllers):
     X[k], U[k], Cost[k] = sysGenPend.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
 
-    ax = fig.add_subplot(2,2,k+1,autoscale_on=False, aspect = 1,
-                         xlim=(-MaxLen,MaxLen),ylim=(-MaxLen,MaxLen))
-                        
-    line.append(ax.plot([],[],lw=2)[0])
-    lineTarget.append(ax.plot([],[],'r*')[0])
-    plt.title(name)
 
 #### Play a movie of the controllers in action ####
 print 'Playing Movie'
 
 def movie():
+    fig = plt.figure(1)
+    plt.clf()
+    line = []
+    lineTarget = []
+    MaxLen = sysGenPend.Length.sum()
+
     Joints = np.zeros((NumControllers,2,sysGenPend.NumLinks+1))
+
+    for k in range(NumControllers):
+        ax = fig.add_subplot(2,2,k+1,autoscale_on=False, aspect = 1,
+                             xlim=(-MaxLen,MaxLen),ylim=(-MaxLen,MaxLen))
+
+        for j in range(sysGenPend.NumLinks):
+            line.append(ax.plot([],[],lw=4)[0])
+            
+        lineTarget.append(ax.plot([],[],'m*')[0])
+        plt.title(name)
+
+    
+
     
     def init():
-        for k in range(NumControllers):
-            line[k].set_data([],[])
-            lineTarget[k].set_data(sysGenPend.target[0],sysGenPend.target[1])
+        for ln in line:
+            ln.set_data([],[])
+        for ln in lineTarget:
+            ln.set_data(sysGenPend.target[0],sysGenPend.target[1])
         return line, lineTarget
 
     def animate(k):
         for c in range(NumControllers):
             x = X[c][k]
             Joints[c,:,1:] = sysGenPend.pos_fun(x)
-            line[c].set_data(Joints[c][0],Joints[c][1])
+            for j in range(sysGenPend.NumLinks):
+                line[c*sysGenPend.NumLinks+j].set_data(
+                    Joints[c,0,j:j+2],Joints[c,1,j:j+2])
         return line, lineTarget
 
     ani = animation.FuncAnimation(fig,animate,X.shape[1],
