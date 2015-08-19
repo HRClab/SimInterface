@@ -15,7 +15,7 @@ class pendulum(MDP.LagrangianSystem):
     """
     def __init__(self):
         dt = 0.05
-        n = 2
+        n = 3
         self.NumLinks = n
         self.Mass = np.ones(n) 
         self.Length = np.ones(n) 
@@ -124,7 +124,6 @@ Controllers.append(samplingCtrl)
 sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
                                initialPolicy = samplingCtrl,
                                Horizon = T,
-                               regularizationWeight=100,
                                label='Sampling->iLQR')
 
 Controllers.append(sampleIlqr)
@@ -143,7 +142,6 @@ Controllers.append(sampleIlqrSample)
 sampleIlqrSampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
                                          initialPolicy = sampleIlqrSample,
                                          Horizon = T,
-                                         regularizationWeight=.5,
                                          label='Sampling->iLQR->Sampling-iLQR')
 
 Controllers.append(sampleIlqrSampleIlqr)

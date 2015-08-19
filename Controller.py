@@ -138,7 +138,6 @@ class modelPredictiveControl(Controller):
 
 class iterativeLQR(linearQuadraticRegulator):
     def __init__(self,SYS,initialPolicy = None,Horizon=1,
-                 regularizationWeight=100,
                  *args,**kwargs):
         self.Horizon = Horizon
         if initialPolicy is None:
@@ -154,35 +153,42 @@ class iterativeLQR(linearQuadraticRegulator):
         costChange = np.inf
 
         # Cost regularization Parameters
-        alpha = regularizationWeight
+        alpha = 1
 
-        acceptApproximation = True
         
         while np.abs(costChange) > eps:
-            print 'iLQR cost: %g, costChange %g' % (cost,costChange)
-            if acceptApproximation:
+            try:
                 approxSys = MDP.buildApproximateLQSystem(SYS,X,U)
                 
-            for k in range(self.Horizon):
-                curCost = approxSys.costMatrix[k]
-                z = np.hstack((X[k],U[k]))
-                z = np.reshape(z,(len(z),1))
-                approxSys.costMatrix[k] += alpha * \
-                                           np.vstack(
-                                               (np.hstack((np.dot(z.T,z),
-                                                           -z.T)),
-                                                np.hstack((-z,np.eye(len(z))))))
-            linearQuadraticRegulator.__init__(self,
-                                              SYS=approxSys,
-                                              Horizon=self.Horizon,
-                                              *args,**kwargs)
+                for k in range(self.Horizon):
+                    curCost = approxSys.costMatrix[k]
+                    z = np.hstack((X[k],U[k]))
+                    z = np.reshape(z,(len(z),1))
+                    approxSys.costMatrix[k] += alpha * \
+                                               np.vstack(
+                                                   (np.hstack((np.dot(z.T,z),
+                                                               -z.T)),
+                                                    np.hstack((-z,np.eye(len(z))))))
+                linearQuadraticRegulator.__init__(self,
+                                                  SYS=approxSys,
+                                                  Horizon=self.Horizon,
+                                                  *args,**kwargs)
 
-            newX,newU,newCost = SYS.simulatePolicy(self)
-            costChange = newCost-cost
-            acceptApproximation = True
-            X = newX
-            U = newU
-            cost = newCost
+                newX,newU,newCost = SYS.simulatePolicy(self)
+                costChange = newCost-cost
+                print 'iLQR cost: %g, costChange %g' % (newCost,costChange)
+                if costChange < 0:
+                    X = newX
+                    U = newU
+                    cost = newCost
+                    alpha = 1
+                else:
+                    alpha = alpha * 2
+                    print 'raising regularization parameter to %g' % alpha
+                    
+            except (ValueError,np.linalg.LinAlgError):
+                alpha = 2*alpha
+                print 'raising regularization parameter to %g' % alpha
                 
         
     
