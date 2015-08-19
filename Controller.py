@@ -148,15 +148,21 @@ class iterativeLQR(linearQuadraticRegulator):
 
         X,U,cost = SYS.simulatePolicy(initialPolicy)
 
+        bestCost = cost
+        
+        initCost = cost
+        
         eps = 1e-2
 
         costChange = np.inf
 
         # Cost regularization Parameters
         alpha = 1
-
         
         while np.abs(costChange) > eps:
+            if alpha > 1e12:
+                print 'regularization parameter too large'
+                break
             try:
                 approxSys = MDP.buildApproximateLQSystem(SYS,X,U)
                 
@@ -175,22 +181,32 @@ class iterativeLQR(linearQuadraticRegulator):
                                                   *args,**kwargs)
 
                 newX,newU,newCost = SYS.simulatePolicy(self)
-                costChange = newCost-cost
+                costChange = newCost-bestCost
                 print 'iLQR cost: %g, costChange %g' % (newCost,costChange)
-                if costChange < 0:
+                if newCost < bestCost:
                     X = newX
                     U = newU
-                    cost = newCost
+                    bestCost = newCost
                     alpha = 1
+                    bestApprox = approxSys
                 else:
                     alpha = alpha * 2
                     print 'raising regularization parameter to %g' % alpha
                     
             except (ValueError,np.linalg.LinAlgError):
                 alpha = 2*alpha
+                print 'numerical problems'
                 print 'raising regularization parameter to %g' % alpha
                 
-        
+
+        if bestCost < initCost:
+            linearQuadraticRegulator.__init__(self,
+                                              SYS=bestApprox,
+                                              Horizon=self.Horizon,
+                                              *args,**kwargs)
+        else:
+            self = initialPolicy
+
     
 class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
@@ -229,19 +245,36 @@ class samplingControl(flatOpenLoopPolicy):
             
         logLik = self.loglikelihood(U)
         bestCost = np.inf
+        cost = np.inf
 
-        for samp in range(burnIn):
+        eps = 1e-3
+        
+        samp = 0
+        while samp < burnIn:
+            samp += 1
             W = np.dot(NoiseGain,randn(lenW))
             U,logLik = eslice(U,W,self.loglikelihood,cur_lnpdf=logLik)
-            cost = -logLik * self.KLWeight
-            if cost < bestCost:
-                bestCost = cost
+            newCost = -logLik * self.KLWeight
+            if newCost < bestCost:
+                bestCost = newCost
                 bestU = U
+                
+            costChange = newCost - cost
+            cost = newCost
 
-            if (samp+1) % 10 == 0:
-                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
-                    (samp+1,burnIn,cost,bestCost)
+            
+            if burnIn < np.inf:
+                if samp % 10 == 0:
+                    print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                        (samp,burnIn,cost,bestCost)
+            else:
+                if costChange >= 0:
+                    break
 
+                if samp % 10 == 0:
+                    print 'run %d, Cost: %g, Cost Change %g' % \
+                        (samp,cost,costChange)
+            
         self.U = bestU
 
     def loglikelihood(self,U):

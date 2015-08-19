@@ -17,8 +17,9 @@ class pendulum(MDP.LagrangianSystem):
         dt = 0.05
         n = 3
         self.NumLinks = n
-        self.Mass = np.ones(n) 
-        self.Length = np.ones(n) 
+        self.Mass = np.array([6,4,2])
+        self.Length = np.array([.3,.3,.2])
+        # self.Mass = np.ones(n)
         g = 10.
 
         q = sym.symarray('q',n)
@@ -26,9 +27,8 @@ class pendulum(MDP.LagrangianSystem):
         x = np.hstack((q,dq))
         u = sym.symarray('u',n)
 
-        target = np.array([0,0.8 * self.Length.sum()])
-        x0 = np.zeros(2*n)
-        x0[0] = -np.pi / 2 + .1
+        target = np.array([0.8 * self.Length.sum(),0])
+        x0 = np.array([-np.pi/2,np.pi,0,0,0,0])
         self.target = target
         # cartesian position
     
@@ -59,7 +59,7 @@ class pendulum(MDP.LagrangianSystem):
         fric = 1 * dq
 
         # Cost
-        EnergyCost = 0.01 * np.dot(u,u)
+        EnergyCost = 0.001 * np.dot(u,u)
         targetError = target - pos[:,-1]
         targetCost = 1000 * np.dot(targetError,targetError)
         speedCost = 0.1 * np.dot(dq,dq)
@@ -114,9 +114,9 @@ Controllers = []
 
 samplingCtrl = ctrl.samplingControl(SYS=sysGenPend,
                                     Horizon=T,
-                                    KLWeight=1e-5,
-                                    burnIn=1000,
-                                    ExplorationCovariance=25.*\
+                                    KLWeight=1e-4,
+                                    burnIn=100,
+                                    ExplorationCovariance=10.*\
                                     np.eye(sysGenPend.NumInputs),
                                     label='Sampling')
 Controllers.append(samplingCtrl)
@@ -128,23 +128,23 @@ sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
 
 Controllers.append(sampleIlqr)
 
-sampleIlqrSample = ctrl.samplingControl(SYS=sysGenPend,
-                                        initialPolicy = sampleIlqr,
-                                        Horizon=T,
-                                        KLWeight=1e-5,
-                                        burnIn=1000,
-                                        ExplorationCovariance=25.*\
-                                        np.eye(sysGenPend.NumInputs),
-                                        label='Sampling->iLQR->Sampling')
+# sampleIlqrSample = ctrl.samplingControl(SYS=sysGenPend,
+#                                         initialPolicy = sampleIlqr,
+#                                         Horizon=T,
+#                                         KLWeight=1e-4,
+#                                         burnIn=1000,
+#                                         ExplorationCovariance=10.*\
+#                                         np.eye(sysGenPend.NumInputs),
+#                                         label='Sampling->iLQR->Sampling')
 
-Controllers.append(sampleIlqrSample)
+# Controllers.append(sampleIlqrSample)
 
-sampleIlqrSampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
-                                         initialPolicy = sampleIlqrSample,
-                                         Horizon = T,
-                                         label='Sampling->iLQR->Sampling-iLQR')
+# sampleIlqrSampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
+#                                          initialPolicy = sampleIlqrSample,
+#                                          Horizon = T,
+#                                          label='Sampling->iLQR->Sampling-iLQR')
 
-Controllers.append(sampleIlqrSampleIlqr)
+# Controllers.append(sampleIlqrSampleIlqr)
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'
