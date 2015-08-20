@@ -18,15 +18,8 @@ class MarkovDecisionProcess:
 
     def simulatePolicy(self,policy):
         Horizon = policy.Horizon
-        if self.NumStates > 1:
-            X = np.zeros((Horizon,self.NumStates))
-        else:
-            X = np.zeros(Horizon)
-            
-        if self.NumInputs > 1:
-            U = np.zeros((Horizon,self.NumInputs))
-        else:
-            U = np.zeros(Horizon)
+        X = np.zeros((Horizon,self.NumStates))
+        U = np.zeros((Horizon,self.NumInputs))
 
         x = self.x0
         X[0] = x
@@ -355,11 +348,11 @@ class inputAugmentedLagrangian(LagrangianSystem):
         uLag = self.inputFunc(u)
         return self.stepEuler(x,uLag,self.dt)
 
-    def linearization(self,x,u,k):
+    def linearization(self,x,u):
         uLag = self.inputFunc(u)
         A,BLag,g = LagrangianSystem.linearization(self,x,u)
         inputJac = self.inputFunc_jac(u)
-        B = np.dot(BLag,inputJac)
+        B = castToShape(np.dot(BLag,inputJac),(self.NumStates,self.NumInputs))
         
         return (A,B,g)
         

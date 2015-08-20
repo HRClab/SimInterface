@@ -19,7 +19,7 @@ class Controller:
         self.label = label
 
     def action(self,x,k):
-        u = np.zeros(self.NumInputs).squeeze()
+        u = np.zeros(self.NumInputs)
         return u
 
 class openLoopPolicy(Controller):
@@ -128,8 +128,7 @@ class linearQuadraticRegulator(Controller):
             self.Gain[k] = gainMatrix(M,p)
 
         # print np.diag(self.RiccatiSolution[0][:-p,:-p])
-        self.Gain = self.Gain.squeeze()
-
+        self.Gain = self.Gain
     def action(self,x,k):
         curVec = np.hstack((1,x))
         return np.dot(self.Gain[k],curVec)
@@ -178,7 +177,7 @@ class iterativeLQR(varyingGainAndFeedforward):
         costChange = np.inf
 
         # Cost regularization Parameters
-        alpha = .1
+        alpha = 1
         n = SYS.NumStates
         p = SYS.NumInputs
 
@@ -237,14 +236,13 @@ class iterativeLQR(varyingGainAndFeedforward):
                     U = newU
                     bestCost = newCost
                     bestGain = testController.Gain
-                    alpha = .1
+                    alpha = 1
                 else:
                     alpha *= 2
-                    print 'increasing regularization parameter to %g' % alpha
             except (ValueError,np.linalg.LinAlgError):
                 alpha *= 2
                 print 'numerical problem'
-                print 'increasing regularization parameter to %g' % alpha
+                # print 'increasing regularization parameter to %g' % alpha
 
         varyingGainAndFeedforward.__init__(self,
                                            gain=bestGain,
@@ -312,7 +310,7 @@ class samplingControl(flatOpenLoopPolicy):
                     print 'run %d of %d, Cost: %g, Best Cost: %g' % \
                         (samp,burnIn,cost,bestCost)
             else:
-                if costChange >= 0:
+                if costChange>=0:
                     break
 
                 if samp % 10 == 0:
