@@ -1,8 +1,11 @@
 import MarkovDecisionProcess as MDP
 import numpy as np
 from numpy.random import randn
-from scipy.linalg import solve, cholesky, block_diag, eigh
+from scipy.linalg import solve, cholesky, block_diag, eigh, eig
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
+
+def eigMin(M):
+    return eigh(M,eigvals_only=True,eigvals=(0,0))[0]
 
 class Controller:
     def __init__(self,Horizon=0,label=''):
@@ -41,6 +44,16 @@ class staticGain(Controller):
         u = np.dot(self.gain,x)
         return u
 
+class varyingGainAndFeedforward(Controller):
+    def __init__(self,gain,*args,**kwargs):
+        self.Gain = gain
+        Controller.__init__(self,*args,**kwargs)
+
+    def action(self,x,k):
+        vec = np.hstack((1,x))
+        u = np.dot(self.Gain[k],vec)
+        return u
+    
 class staticFunction(Controller):
     def __init__(self,func,*args,**kwargs):
         self.func = func
@@ -93,21 +106,21 @@ class linearQuadraticRegulator(Controller):
                 bigDynMat = np.vstack((np.hstack((1,np.zeros(n+p))),
                                        dynMat))
 
+            A = dynMat[:,1:n+1]
+            v = eig(A)[0]
+            # print 'max eigenvalue: %g' % np.abs(v).max()
             Ric = self.RiccatiSolution[k+1]
-            M = costMat + np.dot(bigDynMat.T,np.dot(Ric,bigDynMat))
+            OlDyn = bigDynMat[:,:-p]
+            RicBound = costMat[:-p,:-p] + np.dot(OlDyn.T,np.dot(Ric,OlDyn))
+            UpdateMat = np.dot(bigDynMat.T,np.dot(Ric,bigDynMat))
+            M = costMat + UpdateMat
             M = .5*(M+M.T)
-            # Somehow this works even when M is not positive semidefinite
-            # But that could only happen if the problem is poorly conditioned
             
             newRic = schurComplement(M,p)
             self.RiccatiSolution[k] = .5*(newRic+newRic.T)
             self.Gain[k] = gainMatrix(M,p)
 
-            # print 'Cost: %g Ric: %g M: %g' % (minEigCost,minEigRic,minEigM)
-
-            # if minEigM < 0:
-            #     print M
-
+        # print np.diag(self.RiccatiSolution[0][:-p,:-p])
         self.Gain = self.Gain.squeeze()
 
     def action(self,x,k):
@@ -136,9 +149,9 @@ class modelPredictiveControl(Controller):
         self.previousAction = u
         return u
 
-class iterativeLQR(linearQuadraticRegulator):
+class iterativeLQR(varyingGainAndFeedforward):
     def __init__(self,SYS,initialPolicy = None,Horizon=1,
-                 *args,**kwargs):
+                 stoppingTolerance=1e-3,*args,**kwargs):
         self.Horizon = Horizon
         if initialPolicy is None:
             gain = np.zeros((SYS.NumInputs,SYS.NumStates)).squeeze()
@@ -146,66 +159,90 @@ class iterativeLQR(linearQuadraticRegulator):
         else:
             self.Horizon = initialPolicy.Horizon
 
-        X,U,cost = SYS.simulatePolicy(initialPolicy)
+        X,U,initCost = SYS.simulatePolicy(initialPolicy)
 
-        bestCost = cost
-        
-        initCost = cost
-        
-        eps = 1e-2
+        gainShape = (self.Horizon, SYS.NumInputs, SYS.NumStates+1)
+
+        bestCost = initCost
+        bestGain = np.zeros(gainShape)
+        for k in range(self.Horizon):
+            bestGain[k,:,0] = U[k]
 
         costChange = np.inf
 
         # Cost regularization Parameters
-        alpha = 1
-        
-        while np.abs(costChange) > eps:
+        alpha = .1
+        n = SYS.NumStates
+        p = SYS.NumInputs
+
+        testController = varyingGainAndFeedforward(gain=bestGain,
+                                                   Horizon=self.Horizon,
+                                                   *args,**kwargs)
+
+        run = 0 
+        while np.abs(costChange)>stoppingTolerance:
+            run += 1
             if alpha > 1e12:
                 print 'regularization parameter too large'
                 break
-            try:
-                approxSys = MDP.buildApproximateLQSystem(SYS,X,U)
-                
-                for k in range(self.Horizon):
-                    curCost = approxSys.costMatrix[k]
-                    z = np.hstack((X[k],U[k]))
-                    z = np.reshape(z,(len(z),1))
-                    approxSys.costMatrix[k] += alpha * \
-                                               np.vstack(
-                                                   (np.hstack((np.dot(z.T,z),
-                                                               -z.T)),
-                                                    np.hstack((-z,np.eye(len(z))))))
-                linearQuadraticRegulator.__init__(self,
-                                                  SYS=approxSys,
-                                                  Horizon=self.Horizon,
-                                                  *args,**kwargs)
 
-                newX,newU,newCost = SYS.simulatePolicy(self)
+            correctionSys = MDP.buildCorrectionSystem(SYS,X,U)
+
+            
+            for k in range(self.Horizon):
+                dynMat = correctionSys.dynamicsMatrix[k]
+                A = dynMat[:,1:n+1]
+                v = eig(A)[0]
+                # print 'max eigenvalue: %g' % np.abs(v).max(0)
+                curCost = correctionSys.costMatrix[k]
+                M = curCost[1:,1:]
+
+                nv = M.shape[0]
+                
+                minEig = eigMin(M)
+                if minEig < 0:
+                    beta = -1.1 * minEig
+                    M += beta * np.eye(nv)
+
+                M[-p:,-p:] += alpha * np.eye(p)
+                curCost[1:,1:] = M
+                correctionSys.costMatrix[k] = curCost
+                
+            correctionCtrl = linearQuadraticRegulator(SYS=correctionSys,
+                                                      Horizon=self.Horizon,
+                                                      *args,**kwargs)
+
+            testController.Gain = np.zeros(gainShape)
+            #print 'largest correction gain: %g' % np.abs(correctionCtrl.Gain).max()
+            for k in range(self.Horizon):
+                testController.Gain[k,:,0] = correctionCtrl.Gain[k,:,0] + \
+                                             U[k] - \
+                                             np.dot(correctionCtrl.Gain[k,:,1:],X[k])
+                testController.Gain[k,:,1:] = correctionCtrl.Gain[k,:,1:]
+                                
+
+            try:
+                newX,newU,newCost = SYS.simulatePolicy(testController)
                 costChange = newCost-bestCost
                 print 'iLQR cost: %g, costChange %g' % (newCost,costChange)
                 if newCost < bestCost:
                     X = newX
                     U = newU
                     bestCost = newCost
-                    alpha = 1
-                    bestApprox = approxSys
+                    bestGain = testController.Gain
+                    alpha = .1
                 else:
-                    alpha = alpha * 2
-                    print 'raising regularization parameter to %g' % alpha
-                    
+                    alpha *= 2
+                    print 'increasing regularization parameter to %g' % alpha
             except (ValueError,np.linalg.LinAlgError):
-                alpha = 2*alpha
-                print 'numerical problems'
-                print 'raising regularization parameter to %g' % alpha
-                
+                alpha *= 2
+                print 'numerical problem'
+                print 'increasing regularization parameter to %g' % alpha
 
-        if bestCost < initCost:
-            linearQuadraticRegulator.__init__(self,
-                                              SYS=bestApprox,
-                                              Horizon=self.Horizon,
-                                              *args,**kwargs)
-        else:
-            self = initialPolicy
+        varyingGainAndFeedforward.__init__(self,
+                                           gain=bestGain,
+                                           Horizon=self.Horizon,
+                                           *args,**kwargs)
 
     
 class approximateLQR(linearQuadraticRegulator):

@@ -1,6 +1,6 @@
 import numpy as np
 import pylagrange as lag
-from scipy.linalg import eigh
+from scipy.linalg import eigh, eig
 import sympy_utils as su
 
 class MarkovDecisionProcess:
@@ -172,6 +172,26 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
         else:
             return self.dynamicsMatrix[k:], self.costMatrix[k:]
 
+    def getCorrectionMatrices(self,x,u,k):
+        if self.timeInvariant:
+            # Drop the g vector
+            dynMat = np.zeros(self.dynamicsMatrix.shape)
+            dynMat[:,1:] = self.dynamicsMatrix[:,1:]
+
+            # Compute the correction terms in the linear quad
+            C = self.costMatrix
+            C1z = C[0,1:]
+            Czz = C[1:,1:]
+            z = np.hstack((x,u))
+            row = C1z + np.dot(z,Czz)
+            row = np.reshape(row,(1,len(row)))
+            costMat = np.vstack(np.hstack(([[0]],row)),
+                                np.hstack((row.T,Czz)))
+            return dynMat, costMat
+            
+        else:
+            print 'Sorry only time invariant at the moment'
+            
 def convexApproximationMatrices(SYS,x,u,k):
     dynMat,costMat = SYS.getApproximationMatrices(x,u,k)
     n = SYS.NumStates
@@ -200,6 +220,23 @@ def convexApproximationMatrices(SYS,x,u,k):
     # print eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
 
     return dynMat,costMat
+
+def buildCorrectionSystem(SYS,X,U):
+    """
+    Builds the linear-quadratic correction system.
+    """
+    Horizon = len(U)
+    n = SYS.NumStates
+    p = SYS.NumInputs
+    NumStepVars = n+p+1
+    dynMat = np.zeros((Horizon,n,NumStepVars))
+    costMat = np.zeros((Horizon,NumStepVars,NumStepVars))
+    for k in range(Horizon):
+        dynMat[k],costMat[k] = SYS.getCorrectionMatrices(X[k],U[k],k)
+        
+    return LinearQuadraticSystem(dynMat,costMat,
+                                 timeInvariant=False,x0=np.zeros(n))
+
 
 def buildApproximateLQSystem(SYS,X,U):
     """
@@ -233,7 +270,9 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         self.cost_fun = su.functify(cost,(x,u))
         z = np.hstack((x,u))
         grad = su.jacobian(cost,z)
+        self.cost_grad = su.functify(grad,(x,u))
         hes = su.jacobian(grad,z)
+        self.cost_hes = su.functify(hes,(x,u))
 
         C11 = cost - np.dot(grad,z) - .5*np.dot(z,np.dot(hes,z))
         C1z = .5 * grad - .5 * np.dot(hes,z)
@@ -255,12 +294,39 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
     def costStep(self,x,u,k):
         return self.cost_fun(x,u)
 
+    def getCorrectionMatrices(self,x,u,k):
+        A,B,g = self.linearization(x,u)
+
+        
+        Ad = np.eye(len(x)) + self.dt * A
+        Bd = self.dt * B
+
+        vA = np.abs(eig(A)[0]).max()
+        vAd = np.abs(eig(Ad)[0]).max()
+
+        # print 'MaxEig(A): %g, MaxEig(Ad): %g' % (vA,vAd)
+        
+        dynMat = np.zeros((self.NumStates,
+                           self.NumStates+self.NumInputs+1))
+
+        dynMat[:,1:] = np.hstack((Ad,Bd))
+
+        grad = self.cost_grad(x,u)
+        hes = self.cost_hes(x,u)
+
+        grad = castToShape(grad,(self.NumStates+self.NumInputs,1))
+
+        costMat = np.vstack((np.hstack(([[0]],grad.T)),
+                             np.hstack((grad,hes))))
+
+        return dynMat, costMat
+        
     def getApproximationMatrices(self,x,u,k=0):
         n = len(x)
         A,B,g = self.linearization(x,u)
         Ad = np.eye(n) + self.dt * A
         Bd = self.dt * B
-        gd = self.dt * g
+        gd = self.dt * (g-np.dot(A,x)-np.dot(B,u))
         dynMat = buildDynamicsMatrix(Ad,Bd,gd)
         costMat = self.costMat_fun(x,u)
         return dynMat,costMat
