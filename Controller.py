@@ -8,12 +8,19 @@ def eigMin(M):
     return eigh(M,eigvals_only=True,eigvals=(0,0))[0]
 
 class Controller:
-    def __init__(self,Horizon=0,label=''):
+    """
+    Base class for a controller.
+    It is by default an open-loop controller, i.e. it returns input 0
+    at each step. 
+    """
+    def __init__(self,Horizon=0,NumInputs = 1,label=''):
+        self.NumInputs = NumInputs
         self.Horizon = Horizon
         self.label = label
 
     def action(self,x,k):
-        return 0
+        u = np.zeros(self.NumInputs).squeeze()
+        return u
 
 class openLoopPolicy(Controller):
     def __init__(self,U,*args,**kwargs):

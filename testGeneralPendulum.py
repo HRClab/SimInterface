@@ -6,7 +6,7 @@ import matplotlib.animation as animation
 import sympy as sym
 import sympy_utils as su
 
-#### Define the sysGenPendtem ####
+#### Define the system ####
 
 
 class pendulum(MDP.LagrangianSystem):
@@ -129,7 +129,7 @@ sampling = ctrl.samplingControl(SYS=sysGenPend,
 Controllers.append(sampling)
 
 sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
-                               initialPolicy = samplingCtrl,
+                               initialPolicy = sampling,
                                Horizon = T,
                                stoppingTolerance=1e-2,
                                label='Sampling->iLQR')

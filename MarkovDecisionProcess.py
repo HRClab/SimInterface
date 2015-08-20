@@ -1,6 +1,7 @@
 import numpy as np
 import pylagrange as lag
 from scipy.linalg import eigh, eig
+import sympy as sym
 import sympy_utils as su
 
 class MarkovDecisionProcess:
@@ -260,7 +261,11 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
     def __init__(self,T=0,V=0,fric=0,cost=0,x=0,u=0,dt=0.01,x0=None):
         self.dt = dt
         self.NumStates = len(x)
-        self.NumInputs = self.NumStates / 2
+        if isinstance(u,np.ndarray):
+            self.NumInputs = len(u)
+        else:
+            self.NumInputs = 1
+            
         if x0 is None:
             self.x0 = np.zeros(self.NumStates)
         else:
@@ -330,3 +335,31 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         dynMat = buildDynamicsMatrix(Ad,Bd,gd)
         costMat = self.costMat_fun(x,u)
         return dynMat,costMat
+
+class inputAugmentedLagrangian(LagrangianSystem):
+    """
+    Lagrangian systems with input augmented by a static function. 
+    In this case the dynamics have the from
+
+    M(q) ddq + C(q,dq) dq + Phi(q) = inputFunc(u)
+    """
+    def __init__(self,inputFunc=None,u=0,x=0,*args,**kwargs):
+        self.inputFunc = su.functify(inputFunc,u)
+        inputFunc_jac = su.jacobian(inputFunc,u)
+        self.inputFunc_jac = su.functify(inputFunc_jac,u)
+
+        LagrangianSystem.__init__(self,x=x,u=u,*args,**kwargs)
+
+        
+    def step(self,x,u,k):
+        uLag = self.inputFunc(u)
+        return self.stepEuler(x,uLag,self.dt)
+
+    def linearization(self,x,u,k):
+        uLag = self.inputFunc(u)
+        A,BLag,g = LagrangianSystem.linearization(self,x,u)
+        inputJac = self.inputFunc_jac(u)
+        B = np.dot(BLag,inputJac)
+        
+        return (A,B,g)
+        
