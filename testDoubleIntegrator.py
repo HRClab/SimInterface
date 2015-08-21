@@ -12,7 +12,7 @@ class doubleIntegrator(MDP.LinearQuadraticSystem):
     def __init__(self):
         dt = 0.1
         self.dt = dt
-        self.x0 = np.array([1.0,0.0])
+        x0 = np.array([1.0,0.0])
         A = np.eye(2) + dt * np.array([[0,1],[0,0]])
         B = dt * np.array([0,1])
         Q = dt * np.eye(2)
@@ -21,7 +21,7 @@ class doubleIntegrator(MDP.LinearQuadraticSystem):
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
         MDP.LinearQuadraticSystem.__init__(self,
                                            dynamicsMatrix=dynMat,
-                                           costMatrix=costMat)
+                                           costMatrix=costMat,x0=x0)
 
 sys = doubleIntegrator()
 
@@ -52,7 +52,7 @@ Controllers.append(samplingCtrl)
 #### Prepare the simulations ####
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,2))
-U = np.zeros((NumControllers,T))
+U = np.zeros((NumControllers,T,1))
 Cost = np.zeros(NumControllers)
 Time = sys.dt * np.arange(T)
 plt.figure(1)

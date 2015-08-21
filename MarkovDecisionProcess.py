@@ -135,7 +135,7 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
                          self.NumStates - 1
 
         if x0 is None:
-            self.x0 = np.zeros(self.NumStates).squeeze()
+            self.x0 = np.zeros(self.NumStates)
         else:
             self.x0 = x0
             
@@ -202,13 +202,13 @@ def convexApproximationMatrices(SYS,x,u,k):
                               np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
                                          np.hstack((-z,np.eye(n)))))
 
-    eigMin = eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
-    if eigMin < 0:
-        z = np.hstack((x,u)).reshape((n+p,1))
-        alpha = -1.1 * eigMin
-        costMat += alpha * \
-                   np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
-                              np.hstack((-z,np.eye(n+p)))))
+    # eigMin = eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
+    # if eigMin < 0:
+    #     z = np.hstack((x,u)).reshape((n+p,1))
+    #     alpha = -1.1 * eigMin
+    #     costMat += alpha * \
+    #                np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
+    #                           np.hstack((-z,np.eye(n+p)))))
 
         
     # print eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
@@ -328,6 +328,7 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         dynMat = buildDynamicsMatrix(Ad,Bd,gd)
         costMat = self.costMat_fun(x,u)
         return dynMat,costMat
+
 
 class inputAugmentedLagrangian(LagrangianSystem):
     """

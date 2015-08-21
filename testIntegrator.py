@@ -18,7 +18,7 @@ class Integrator(MDP.LinearQuadraticSystem):
         dynMat = MDP.buildDynamicsMatrix(A,B)
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
         MDP.LinearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
-                                  costMatrix=costMat)
+                                           costMatrix=costMat,x0 = self.x0)
 sys = Integrator()
 
 T = 100
@@ -43,8 +43,8 @@ samplingCtrl = ctrl.samplingControl(SYS=sys,Horizon=T,
 Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T))
-U = np.zeros((NumControllers,T))
+X = np.zeros((NumControllers,T,1))
+U = np.zeros((NumControllers,T,1))
 Cost = np.zeros(NumControllers)
 T = sys.dt * np.arange(staticCtrl.Horizon)
 plt.figure(1)

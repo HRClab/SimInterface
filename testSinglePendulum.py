@@ -51,9 +51,9 @@ potentialCtrl = ctrl.staticFunction(func=artificialPotential,
 Controllers.append(potentialCtrl)
 
 Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
-                                        KLWeight=1e-5,burnIn=20,
-                                        ExplorationCovariance = 1.,
-                                        initialPolicy = potentialCtrl,
+                                        KLWeight=1e-3,burnIn=100,
+                                        ExplorationCovariance = 50.,
+                                        initialPolicy = None,
                                         label='Sampling'))
 Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
                                                predictiveHorizon=10,
@@ -61,7 +61,7 @@ Controllers.append(ctrl.modelPredictiveControl(SYS=sys,Horizon=T,
 #### Prepare the simulations ####
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,2))
-U = np.zeros((NumControllers,T))
+U = np.zeros((NumControllers,T,1))
 Cost = np.zeros(NumControllers)
 Time = sys.dt * np.arange(T)
 plt.figure(1)

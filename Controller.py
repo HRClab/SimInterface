@@ -137,7 +137,7 @@ class modelPredictiveControl(Controller):
     def __init__(self,SYS,predictiveHorizon,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
         self.SYS = SYS
-        self.previousAction = np.zeros(SYS.NumInputs).squeeze()
+        self.previousAction = np.zeros(SYS.NumInputs)
         self.predictiveHorizon = predictiveHorizon
     def action(self,x,k):
         # Currently only supporting time invariant systems
@@ -160,7 +160,7 @@ class iterativeLQR(varyingGainAndFeedforward):
                  stoppingTolerance=1e-3,*args,**kwargs):
         self.Horizon = Horizon
         if initialPolicy is None:
-            gain = np.zeros((SYS.NumInputs,SYS.NumStates)).squeeze()
+            gain = np.zeros((SYS.NumInputs,SYS.NumStates))
             initialPolicy = staticGain(gain=gain,Horizon=Horizon)
         else:
             self.Horizon = initialPolicy.Horizon
