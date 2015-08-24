@@ -51,7 +51,7 @@ class staticGain(Controller):
         u = np.dot(self.gain,x)
         return u
 
-class varyingGainAndFeedforward(Controller):
+class varyingAffine(Controller):
     def __init__(self,gain,*args,**kwargs):
         self.Gain = gain
         Controller.__init__(self,*args,**kwargs)
@@ -60,7 +60,15 @@ class varyingGainAndFeedforward(Controller):
         vec = np.hstack((1,x))
         u = np.dot(self.Gain[k],vec)
         return u
-    
+
+class flatVaryingAffine(varyingAffine):
+    def __init__(self,flatGain,NumInputs=1,Horizon=1,*args,**kwargs):
+        NumStates = -1 + len(Gain) / (Horizon*NumInputs)
+        gain = np.reshape(flatGain,(Horizon,NumInputs,NumStates+1))
+        varyingAffine.__init__(self,gain=gain,
+                               Horizon=Horizon,NumInputs=NumInputs,
+                               *args,**kwargs)
+
 class staticFunction(Controller):
     def __init__(self,func,*args,**kwargs):
         self.func = func
@@ -155,7 +163,7 @@ class modelPredictiveControl(Controller):
         self.previousAction = u
         return u
 
-class iterativeLQR(varyingGainAndFeedforward):
+class iterativeLQR(varyingAffine):
     def __init__(self,SYS,initialPolicy = None,Horizon=1,
                  stoppingTolerance=1e-3,*args,**kwargs):
         self.Horizon = Horizon
@@ -181,7 +189,7 @@ class iterativeLQR(varyingGainAndFeedforward):
         n = SYS.NumStates
         p = SYS.NumInputs
 
-        testController = varyingGainAndFeedforward(gain=bestGain,
+        testController = varyingAffine(gain=bestGain,
                                                    Horizon=self.Horizon,
                                                    *args,**kwargs)
 
@@ -244,7 +252,7 @@ class iterativeLQR(varyingGainAndFeedforward):
                 print 'numerical problem'
                 # print 'increasing regularization parameter to %g' % alpha
 
-        varyingGainAndFeedforward.__init__(self,
+        varyingAffine.__init__(self,
                                            gain=bestGain,
                                            Horizon=self.Horizon,
                                            *args,**kwargs)
