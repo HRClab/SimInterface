@@ -54,21 +54,30 @@ class staticGain(Controller):
 class varyingAffine(Controller):
     def __init__(self,gain,*args,**kwargs):
         self.Gain = gain
+        print self.Gain.shape
         Controller.__init__(self,*args,**kwargs)
 
     def action(self,x,k):
         vec = np.hstack((1,x))
+        print self.Gain.shape
         u = np.dot(self.Gain[k],vec)
         return u
 
-class flatVaryingAffine(varyingAffine):
+class flatVaryingAffine(Controller):
     def __init__(self,flatGain,NumInputs=1,Horizon=1,*args,**kwargs):
-        NumStates = -1 + len(Gain) / (Horizon*NumInputs)
-        gain = np.reshape(flatGain,(Horizon,NumInputs,NumStates+1))
-        varyingAffine.__init__(self,gain=gain,
-                               Horizon=Horizon,NumInputs=NumInputs,
-                               *args,**kwargs)
+        NumStates = -1 + len(flatGain) / (Horizon*NumInputs)
+        self.NumStates = NumStates
+        self.Gain = flatGain
+        self.Stride = (self.NumStates+1) * NumInputs
+        Controller.__init__(self,Horizon=Horizon,NumInputs=NumInputs,
+                            *args,**kwargs)
 
+    def action(self,x,k):
+        GainMat = np.reshape(self.Gain[self.Stride*k:self.Stride*(k+1)],
+                             (self.NumInputs,self.NumStates+1))
+        vec = np.hstack((1,x))
+        return np.dot(GainMat,vec)
+        
 class staticFunction(Controller):
     def __init__(self,func,*args,**kwargs):
         self.func = func
@@ -311,7 +320,15 @@ def sliceOptimize(U,priorChol,logLikFun,KLWeight,burnIn):
             
     return bestU
 
-        
+
+def trajectoryNoiseMatrix(Cov,Horizon):
+    if isinstance(Cov,np.ndarray):
+        cholSig = cholesky(Cov,lower=True)
+        NoiseGain = np.kron(np.eye(Horizon),cholSig)
+    else:
+        NoiseGain = np.sqrt(Cov) * np.eye(Horizon)
+    return NoiseGain
+
 #### Slice Sampling Controller ####
         
 class samplingOpenLoop(flatOpenLoopPolicy):
@@ -330,11 +347,8 @@ class samplingOpenLoop(flatOpenLoopPolicy):
                                     *args,**kwargs)
 
 
-        if isinstance(ExplorationCovariance,np.ndarray):
-            cholSig = cholesky(ExplorationCovariance,lower=True)
-            NoiseGain = np.kron(np.eye(self.Horizon),cholSig)
-        else:
-            NoiseGain = np.sqrt(ExplorationCovariance) * np.eye(self.Horizon)
+        NoiseGain = trajectoryNoiseMatrix(ExplorationCovariance,
+                                          self.Horizon)
 
         lenW = NoiseGain.shape[0]
 
@@ -343,27 +357,57 @@ class samplingOpenLoop(flatOpenLoopPolicy):
         else:
             U = SYS.simulatePolicy(initialPolicy)[1].flatten()
 
-        U = sliceOptimize(U,NoiseGain,
-                          self.loglikelihood,
-                          self.KLWeight,
-                          burnIn)
+        self.U = sliceOptimize(U,NoiseGain,
+                               self.loglikelihood,
+                               self.KLWeight,
+                               burnIn)
         
     def loglikelihood(self,U):
         self.U = U        
         cost = self.SYS.simulatePolicy(self)[2]
         return -cost / self.KLWeight
 
-# class stochasticSamplingControl(samplingOpenLoop):
-#     def __init__(self,SYS=None,NumSamples=1,Horizon=1,*args,**kwargs):
-#         self.NumSamples = NumSamples
-#         self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
-#         samplingOpenLoop.__init__(self,SYS=SYS,Horizon=Horizon,*args,**kwargs)
+class samplingStochasticAffine(flatVaryingAffine):
+    def __init__(self,SYS=None,Horizon=1,
+                 NumSamples = 1,
+                 KLWeight=1,burnIn=0,
+                 ExplorationCovariance=1.,
+                 initialPolicy = None,
+                 *args, **kwargs):
 
-#     def loglikelihood(self,U):
-#         self.U = U
-#         cost = 0
-#         for k in range(self.NumSamples):
-#             cost += self.SYS.simulatePolicy(self,self.W[k])[2]
+        self.NumSamples = NumSamples
+        self.SYS= SYS
+        self.KLWeight = KLWeight
 
-#         cost = cost / self.NumSamples
-#         return -cost / self.KLWeight
+        # Use a single set of noise inputs 
+        self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
+        
+        n = SYS.NumStates
+        p = SYS.NumInputs
+
+        if initialPolicy is None:
+            gain = np.zeros(Horizon*(n+1)*p)
+        else:
+            # Currently only extract affine part
+            gain = initialPolicy.Gain.flatten()
+            
+        flatVaryingAffine.__init__(self,gain,p,Horizon,*args,**kwargs)
+
+        NoiseGain = trajectoryNoiseMatrix(ExplorationCovariance,
+                                          self.Horizon)
+
+        self.Gain = sliceOptimize(gain,NoiseGain,
+                                  self.loglikelihood,
+                                  self.KLWeight,
+                                  burnIn)
+
+        
+
+    def loglikelihood(self,gain):
+        self.Gain = gain
+        cost = 0
+        for k in range(self.NumSamples):
+            cost += self.SYS.simulatePolicy(self,self.W[k])[2]
+
+        cost = cost / self.NumSamples
+        return -cost / self.KLWeight

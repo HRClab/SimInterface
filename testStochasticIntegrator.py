@@ -35,12 +35,12 @@ Controllers.append(staticCtrl)
 lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-samplingCtrl = ctrl.stochasticSamplingControl(SYS=sys,
-                                              NumSamples = 1,
-                                              Horizon=T,
-                                              KLWeight=1e-4,burnIn=500,
-                                              ExplorationCovariance=3.,
-                                              label='Sampling')
+samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
+                                             NumSamples = 10,
+                                             Horizon=T,
+                                             KLWeight=1e-4,burnIn=500,
+                                             ExplorationCovariance=3.*np.eye(2),
+                                             label='Sampling')
 
 Controllers.append(samplingCtrl)
 
