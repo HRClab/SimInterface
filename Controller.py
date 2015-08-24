@@ -264,8 +264,57 @@ class approximateLQR(linearQuadraticRegulator):
             
         approxSYS = MDP.linearQuadraticSystem(dynMat,costMat,x0=x)
         linearQuadraticRegulator.__init__(self,SYS=approxSYS,*args,**kwargs)
+
+
+#### Slice Sampling Optimizer ####
+
+def sliceOptimize(U,priorChol,logLikFun,KLWeight,burnIn):
+    """
+    U - initial conditon 
+    priorChol - cholesky factorization of prior covariance
+    
+    """
+
+    lenW = priorChol.shape[0]
+    
+    logLik = logLikFun(U)
+    bestCost = np.inf
+    cost = np.inf
+
+    eps = 1e-3
         
-class samplingControl(flatOpenLoopPolicy):
+    samp = 0
+    while samp < burnIn:
+        samp += 1
+        W = np.dot(priorChol,randn(lenW))
+        U,logLik = eslice(U,W,logLikFun,cur_lnpdf=logLik)
+        newCost = -logLik * KLWeight
+        if newCost < bestCost:
+            bestCost = newCost
+            bestU = U
+                
+        costChange = newCost - cost
+        cost = newCost
+
+            
+        if burnIn < np.inf:
+            if samp % 10 == 0:
+                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                    (samp,burnIn,cost,bestCost)
+        else:
+            if costChange>=0:
+                break
+
+            if samp % 10 == 0:
+                print 'run %d, Cost: %g, Cost Change %g' % \
+                    (samp,cost,costChange)
+            
+    return bestU
+
+        
+#### Slice Sampling Controller ####
+        
+class samplingOpenLoop(flatOpenLoopPolicy):
     def __init__(self,
                  SYS = None,
                  KLWeight=1,
@@ -293,57 +342,28 @@ class samplingControl(flatOpenLoopPolicy):
             U = np.zeros(lenW)
         else:
             U = SYS.simulatePolicy(initialPolicy)[1].flatten()
-            
-        logLik = self.loglikelihood(U)
-        bestCost = np.inf
-        cost = np.inf
 
-        eps = 1e-3
+        U = sliceOptimize(U,NoiseGain,
+                          self.loglikelihood,
+                          self.KLWeight,
+                          burnIn)
         
-        samp = 0
-        while samp < burnIn:
-            samp += 1
-            W = np.dot(NoiseGain,randn(lenW))
-            U,logLik = eslice(U,W,self.loglikelihood,cur_lnpdf=logLik)
-            newCost = -logLik * self.KLWeight
-            if newCost < bestCost:
-                bestCost = newCost
-                bestU = U
-                
-            costChange = newCost - cost
-            cost = newCost
-
-            
-            if burnIn < np.inf:
-                if samp % 10 == 0:
-                    print 'run %d of %d, Cost: %g, Best Cost: %g' % \
-                        (samp,burnIn,cost,bestCost)
-            else:
-                if costChange>=0:
-                    break
-
-                if samp % 10 == 0:
-                    print 'run %d, Cost: %g, Cost Change %g' % \
-                        (samp,cost,costChange)
-            
-        self.U = bestU
-
     def loglikelihood(self,U):
         self.U = U        
         cost = self.SYS.simulatePolicy(self)[2]
         return -cost / self.KLWeight
 
-class stochasticSamplingControl(samplingControl):
-    def __init__(self,SYS=None,NumSamples=1,Horizon=1,*args,**kwargs):
-        self.NumSamples = NumSamples
-        self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
-        samplingControl.__init__(self,SYS=SYS,Horizon=Horizon,*args,**kwargs)
+# class stochasticSamplingControl(samplingOpenLoop):
+#     def __init__(self,SYS=None,NumSamples=1,Horizon=1,*args,**kwargs):
+#         self.NumSamples = NumSamples
+#         self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
+#         samplingOpenLoop.__init__(self,SYS=SYS,Horizon=Horizon,*args,**kwargs)
 
-    def loglikelihood(self,U):
-        self.U = U
-        cost = 0
-        for k in range(self.NumSamples):
-            cost += self.SYS.simulatePolicy(self,self.W[k])[2]
+#     def loglikelihood(self,U):
+#         self.U = U
+#         cost = 0
+#         for k in range(self.NumSamples):
+#             cost += self.SYS.simulatePolicy(self,self.W[k])[2]
 
-        cost = cost / self.NumSamples
-        return -cost / self.KLWeight
+#         cost = cost / self.NumSamples
+#         return -cost / self.KLWeight

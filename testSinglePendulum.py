@@ -50,7 +50,7 @@ potentialCtrl = ctrl.staticFunction(func=artificialPotential,
                                     label = 'Potential')
 Controllers.append(potentialCtrl)
 
-Controllers.append(ctrl.samplingControl(SYS=sys,Horizon=T,
+Controllers.append(ctrl.samplingOpenLoop(SYS=sys,Horizon=T,
                                         KLWeight=1e-3,burnIn=100,
                                         ExplorationCovariance = 50.,
                                         initialPolicy = None,

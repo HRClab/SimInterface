@@ -36,7 +36,7 @@ mpcCtrl = ctrl.modelPredictiveControl(SYS=sys,
                                       label='MPC')
 Controllers.append(mpcCtrl)
 
-samplingCtrl = ctrl.samplingControl(SYS=sys,Horizon=T,
+samplingCtrl = ctrl.samplingOpenLoop(SYS=sys,Horizon=T,
                                     KLWeight=1e-5,burnIn=500,
                                     ExplorationCovariance = 3.,
                                     label='Sampling')

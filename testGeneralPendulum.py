@@ -119,7 +119,7 @@ iLQR = ctrl.iterativeLQR(SYS=sysGenPend,
 
 Controllers.append(iLQR)
 
-sampling = ctrl.samplingControl(SYS=sysGenPend,
+sampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
                                     Horizon=T,
                                     KLWeight=1e-4,
                                     burnIn=2000,
@@ -136,7 +136,7 @@ sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
 
 Controllers.append(sampleIlqr)
 
-iLqrSampling = ctrl.samplingControl(SYS=sysGenPend,
+iLqrSampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
                                   initialPolicy=iLQR,
                                   Horizon=T,
                                   KLWeight=1e-4,
