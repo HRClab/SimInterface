@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 #### Define the System ######
 
-class doubleIntegrator(MDP.LinearQuadraticSystem):
+class doubleIntegrator(MDP.linearQuadraticSystem):
     """
     Basic Newton's Laws
     """
@@ -19,7 +19,7 @@ class doubleIntegrator(MDP.LinearQuadraticSystem):
         R = dt * 1.
         dynMat = MDP.buildDynamicsMatrix(A,B)
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
-        MDP.LinearQuadraticSystem.__init__(self,
+        MDP.linearQuadraticSystem.__init__(self,
                                            dynamicsMatrix=dynMat,
                                            costMatrix=costMat,x0=x0)
 

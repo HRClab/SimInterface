@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-class Integrator(MDP.LinearQuadraticSystem):
+class Integrator(MDP.linearQuadraticSystem):
     """
     This is the simplest linear system dynamical system
     """
@@ -17,7 +17,7 @@ class Integrator(MDP.LinearQuadraticSystem):
         R = self.dt * 1.
         dynMat = MDP.buildDynamicsMatrix(A,B)
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
-        MDP.LinearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
+        MDP.linearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
                                            costMatrix=costMat,x0 = self.x0)
 sys = Integrator()
 

@@ -1,14 +1,20 @@
 import numpy as np
+from numpy.random import randn
 import pylagrange as lag
 from scipy.linalg import eigh, eig
 import sympy as sym
 import sympy_utils as su
 
 class MarkovDecisionProcess:
-    def __init__(self):
-        self.x0 = 0
-        self.NumStates = 1
-        self.NumInputs = 1
+    def __init__(self,x0=None,NumStates=1,NumInputs=1):
+        self.NumStates = NumStates
+        self.NumInputs = NumInputs
+        if x0 is None:
+            self.x0 = np.zeros(self.NumStates)
+        else:
+            self.x0 = x0
+
+
 
     def costStep(self,x,u,k):
         return 0
@@ -16,8 +22,10 @@ class MarkovDecisionProcess:
     def step(self,x,u,k):
         return x
 
-    def simulatePolicy(self,policy):
+    def simulatePolicy(self,policy,W=None):
         Horizon = policy.Horizon
+        self.generateNoise(Horizon,W)
+            
         X = np.zeros((Horizon,self.NumStates))
         U = np.zeros((Horizon,self.NumInputs))
 
@@ -33,6 +41,9 @@ class MarkovDecisionProcess:
                 X[k+1] = x
 
         return X,U,cost
+
+    def generateNoise(self,Horizon,W):
+        pass
 
 #### Helper functions for Linear Quadratic Systems ####
 
@@ -111,9 +122,17 @@ def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0):
     
     return C
 
+#### LQ System Helper Functions ####
+
+def sizesFromDynamicsMatrix(dynMat):
+    NumStates = dynMat.shape[-2]
+    NumInputs = dynMat.shape[-1] - NumStates - 1
+    return NumStates, NumInputs
+
+
 #### Basic Linear Quadratic System #### 
 
-class LinearQuadraticSystem(MarkovDecisionProcess):
+class linearQuadraticSystem(MarkovDecisionProcess):
     """
     A discrete-time linear dynamical system with a quadratic cost.
 
@@ -122,23 +141,12 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
 
         self.dynamicsMatrix = dynamicsMatrix
 
-        
-
         self.costMatrix = costMatrix
         self.timeInvariant = timeInvariant
-        if timeInvariant:
-            shapeOffset = 0
-        else:
-            shapeOffset = 1
-        self.NumStates = dynamicsMatrix.shape[shapeOffset]
-        self.NumInputs = dynamicsMatrix.shape[shapeOffset + 1] - \
-                         self.NumStates - 1
 
-        if x0 is None:
-            self.x0 = np.zeros(self.NumStates)
-        else:
-            self.x0 = x0
-            
+        NumStates,NumInputs = sizesFromDynamicsMatrix(dynamicsMatrix)
+        
+        MarkovDecisionProcess.__init__(self,x0,NumStates,NumInputs)
 
     def step(self,x,u,k):
         if self.timeInvariant:
@@ -185,12 +193,54 @@ class LinearQuadraticSystem(MarkovDecisionProcess):
             
         else:
             print 'Sorry only time invariant at the moment'
-            
+
+####
+
+class linearQuadraticStochasticSystem(linearQuadraticSystem):
+    """
+    A discrete-time linear system with quadratic cost and Gaussian Process noise
+    
+    x[k+1] = Ax[k] + Bu[k] + Gw[k]
+
+    where w[k] is identity covariance, zero-mean, Gaussian noise
+    """
+
+    def __init__(self,dynamicsMatrix,costMatrix,noiseMatrix,
+                 timeInvariant=True,x0=None):
+
+        self.noiseMatrix = noiseMatrix
+        self.NumNoiseInputs = noiseMatrix.shape[-1]
+
+        linearQuadraticSystem.__init__(self,dynamicsMatrix,
+                                       costMatrix,timeInvariant,x0)
+    
+    def generateNoise(self,Horizon,W):
+        if W is None:
+            self.W = randn(Horizon,self.NumNoiseInputs)
+        else:
+            self.W = W
+
+    def step(self,x,u,k):
+        """
+        Stochastic Step
+        """
+
+        # The mean is updated like a standard linear system
+        new_x_mean = linearQuadraticSystem.step(self,x,u,k)
+
+        # Now compute the noise term
+        w = self.W[k]
+        if self.timeInvariant:
+            G = self.noiseMatrix
+        else:
+            G = self.noiseMatrix[k]
+        
+        return new_x_mean + np.dot(G,w)
+        
 def convexApproximationMatrices(SYS,x,u,k):
     dynMat,costMat = SYS.getApproximationMatrices(x,u,k)
     n = SYS.NumStates
     p = SYS.NumInputs
-
 
     # Check cost matrix is not convex and then apply
     # a little hack to fix it    
@@ -202,16 +252,6 @@ def convexApproximationMatrices(SYS,x,u,k):
                               np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
                                          np.hstack((-z,np.eye(n)))))
 
-    # eigMin = eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
-    # if eigMin < 0:
-    #     z = np.hstack((x,u)).reshape((n+p,1))
-    #     alpha = -1.1 * eigMin
-    #     costMat += alpha * \
-    #                np.vstack((np.hstack((np.dot(z.T,z),-z.T)),
-    #                           np.hstack((-z,np.eye(n+p)))))
-
-        
-    # print eigh(costMat,eigvals_only=True,eigvals=(0,0))[0]
 
     return dynMat,costMat
 
@@ -228,7 +268,7 @@ def buildCorrectionSystem(SYS,X,U):
     for k in range(Horizon):
         dynMat[k],costMat[k] = SYS.getCorrectionMatrices(X[k],U[k],k)
         
-    return LinearQuadraticSystem(dynMat,costMat,
+    return linearQuadraticSystem(dynMat,costMat,
                                  timeInvariant=False,x0=np.zeros(n))
 
 
@@ -245,7 +285,7 @@ def buildApproximateLQSystem(SYS,X,U):
     costMat = np.zeros((Horizon,NumStepVars,NumStepVars))
     for k in range(Horizon):
         dynMat[k],costMat[k] = convexApproximationMatrices(SYS,X[k],U[k],k)
-    return LinearQuadraticSystem(dynMat,costMat,timeInvariant=False,x0=SYS.x0)
+    return linearQuadraticSystem(dynMat,costMat,timeInvariant=False,x0=SYS.x0)
 
 class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
     """

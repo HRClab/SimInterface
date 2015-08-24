@@ -262,23 +262,24 @@ class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
         dynMat,costMat = MDP.convexApproximationMatrices(SYS,x,u,k)
             
-        approxSYS = MDP.LinearQuadraticSystem(dynMat,costMat,x0=x)
+        approxSYS = MDP.linearQuadraticSystem(dynMat,costMat,x0=x)
         linearQuadraticRegulator.__init__(self,SYS=approxSYS,*args,**kwargs)
         
 class samplingControl(flatOpenLoopPolicy):
     def __init__(self,
-                 SYS,
+                 SYS = None,
                  KLWeight=1,
                  burnIn=0,
                  ExplorationCovariance=1.,
                  initialPolicy = None,
                  *args, **kwargs):
 
+        self.SYS = SYS
+        self.KLWeight = KLWeight
+
         flatOpenLoopPolicy.__init__(self,NumInputs=SYS.NumInputs,
                                     *args,**kwargs)
 
-        self.SYS = SYS
-        self.KLWeight = KLWeight
 
         if isinstance(ExplorationCovariance,np.ndarray):
             cholSig = cholesky(ExplorationCovariance,lower=True)
@@ -330,4 +331,19 @@ class samplingControl(flatOpenLoopPolicy):
     def loglikelihood(self,U):
         self.U = U        
         cost = self.SYS.simulatePolicy(self)[2]
+        return -cost / self.KLWeight
+
+class stochasticSamplingControl(samplingControl):
+    def __init__(self,SYS=None,NumSamples=1,Horizon=1,*args,**kwargs):
+        self.NumSamples = NumSamples
+        self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
+        samplingControl.__init__(self,SYS=SYS,Horizon=Horizon,*args,**kwargs)
+
+    def loglikelihood(self,U):
+        self.U = U
+        cost = 0
+        for k in range(self.NumSamples):
+            cost += self.SYS.simulatePolicy(self,self.W[k])[2]
+
+        cost = cost / self.NumSamples
         return -cost / self.KLWeight
