@@ -22,9 +22,6 @@ class Controller:
         u = np.zeros(self.NumInputs)
         return u
 
-    def reset(self):
-        pass
-
 class openLoopPolicy(Controller):
     def __init__(self,U,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
@@ -285,6 +282,7 @@ def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
     sampleObj.loglikelihood - a log-likelihood function 
     sampleObj.displaySampleInfo - a function that prints relevant info to screen
 
+    if resetObject is True then sampleObj.reset must also be defined
     X - an initial sample
     burnIn - length of burn-in period
     resetObject - flag to reset sampleObj after each sample
@@ -438,8 +436,6 @@ class samplingStochasticAffine(flatVaryingAffine):
         self.SYS= SYS
         self.KLWeight = KLWeight
 
-        # Use a single set of noise inputs 
-        self.W = randn(NumSamples,Horizon,SYS.NumNoiseInputs)
         
         n = SYS.NumStates
         p = SYS.NumInputs
@@ -452,15 +448,14 @@ class samplingStochasticAffine(flatVaryingAffine):
             
         flatVaryingAffine.__init__(self,gain,p,Horizon,*args,**kwargs)
 
-        NoiseGain = trajectoryNoiseMatrix(ExplorationCovariance,
-                                          self.Horizon)
-
-        self.Gain = sliceOptimize(gain,NoiseGain,
-                                  self.loglikelihood,
-                                  self.KLWeight,
-                                  burnIn)
-
+        # Set the auxilliary noise using the reset method
+        self.reset()
         
+        self.priorChol = trajectoryNoiseMatrix(ExplorationCovariance,
+                                               self.Horizon)
+
+        self.Gain = sliceSample(self,gain,burnIn,resetObject=True)[1]
+
 
     def loglikelihood(self,gain):
         self.Gain = gain
@@ -470,3 +465,19 @@ class samplingStochasticAffine(flatVaryingAffine):
 
         cost = cost / self.NumSamples
         return -cost / self.KLWeight
+
+    def reset(self):
+        self.W = randn(self.NumSamples,self.Horizon,self.SYS.NumNoiseInputs)
+
+    def displaySampleInfo(self,logLik,bestLik,samp,burnIn):
+        cost = -logLik * self.KLWeight
+        bestCost = -bestLik * self.KLWeight
+        
+        if burnIn < np.inf:
+            if samp % 10 == 0:
+                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                    (samp,burnIn,cost,bestCost)
+        else:
+            if samp % 10 == 0:
+                print 'run %d, Cost: %g, Cost Change %g' % \
+                    (samp,cost,costChange)
