@@ -6,9 +6,10 @@ import sympy as sym
 import sympy_utils as su
 
 class MarkovDecisionProcess:
-    def __init__(self,x0=None,NumStates=1,NumInputs=1):
+    def __init__(self,x0=None,NumStates=1,NumInputs=1,NumNoiseInputs=0):
         self.NumStates = NumStates
         self.NumInputs = NumInputs
+        self.NumNoiseInputs = NumNoiseInputs
         if x0 is None:
             self.x0 = np.zeros(self.NumStates)
         else:
@@ -209,11 +210,11 @@ class linearQuadraticStochasticSystem(linearQuadraticSystem):
     def __init__(self,dynamicsMatrix,costMatrix,noiseMatrix,
                  timeInvariant=True,x0=None):
 
-        self.noiseMatrix = noiseMatrix
-        self.NumNoiseInputs = noiseMatrix.shape[-1]
-
         linearQuadraticSystem.__init__(self,dynamicsMatrix,
                                        costMatrix,timeInvariant,x0)
+        
+        self.noiseMatrix = noiseMatrix
+        self.NumNoiseInputs = noiseMatrix.shape[-1]
     
     def generateNoise(self,Horizon,W):
         if W is None:

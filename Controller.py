@@ -374,8 +374,26 @@ def trajectoryNoiseMatrix(Cov,Horizon):
         NoiseGain = np.sqrt(Cov) * np.eye(Horizon)
     return NoiseGain
 
-#### Slice Sampling Controller ####
+def sliceOptimizationDisplay(logLik,bestLik,samp,burnIn,KLWeight):
+    cost = -logLik * KLWeight
+    bestCost = -bestLik * KLWeight
         
+    if burnIn < np.inf:
+        if samp % 10 == 0:
+            print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                (samp,burnIn,cost,bestCost)
+    else:
+        if samp % 10 == 0:
+            print 'run %d, Cost: %g, Cost Change %g' % \
+                (samp,cost,costChange)
+
+
+def nullDisplay(logLik,bestLik,samp,burnIn,KLWeight):
+    pass
+
+#### Slice Sampling Controllers ####
+
+
 class samplingOpenLoop(flatOpenLoopPolicy):
     def __init__(self,
                  SYS = None,
@@ -383,8 +401,10 @@ class samplingOpenLoop(flatOpenLoopPolicy):
                  burnIn=0,
                  ExplorationCovariance=1.,
                  initialPolicy = None,
+                 displayFun = sliceOptimizationDisplay,
                  *args, **kwargs):
 
+        self.displayFun = displayFun
         self.SYS = SYS
         self.KLWeight = KLWeight
 
@@ -400,10 +420,15 @@ class samplingOpenLoop(flatOpenLoopPolicy):
         if initialPolicy is None:
             self.U = np.zeros(lenW)
         else:
-            self.U = SYS.simulatePolicy(initialPolicy)[1].flatten()
+            UFull = SYS.simulatePolicy(initialPolicy)[1]
+            self.U = UFull[:self.Horizon].flatten()
+            # self.U = SYS.simulatePolicy(initialPolicy)[1].flatten()
 
+        self.burnIn = burnIn
+        self.updatePolicy()
 
-        self.U = sliceSample(self,self.U,burnIn)[1]
+    def updatePolicy(self):
+        self.U = sliceSample(self,self.U,self.burnIn)[1]
         
     def loglikelihood(self,U):
         self.U = U
@@ -411,18 +436,7 @@ class samplingOpenLoop(flatOpenLoopPolicy):
         return -cost / self.KLWeight
 
     def displaySampleInfo(self,logLik,bestLik,samp,burnIn):
-        cost = -logLik * self.KLWeight
-        bestCost = -bestLik * self.KLWeight
-        
-        if burnIn < np.inf:
-            if samp % 10 == 0:
-                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
-                    (samp,burnIn,cost,bestCost)
-        else:
-            if samp % 10 == 0:
-                print 'run %d, Cost: %g, Cost Change %g' % \
-                    (samp,cost,costChange)
-
+        self.displayFun(logLik,bestLik,samp,burnIn,self.KLWeight)
 
 class samplingStochasticAffine(flatVaryingAffine):
     def __init__(self,SYS=None,Horizon=1,
@@ -461,7 +475,7 @@ class samplingStochasticAffine(flatVaryingAffine):
         self.Gain = gain
         cost = 0
         for k in range(self.NumSamples):
-            cost += self.SYS.simulatePolicy(self,self.W[k])[2]
+            cost += self.SYS.simulatePolicy(self,W=self.W[k])[2]
 
         cost = cost / self.NumSamples
         return -cost / self.KLWeight
@@ -470,14 +484,41 @@ class samplingStochasticAffine(flatVaryingAffine):
         self.W = randn(self.NumSamples,self.Horizon,self.SYS.NumNoiseInputs)
 
     def displaySampleInfo(self,logLik,bestLik,samp,burnIn):
-        cost = -logLik * self.KLWeight
-        bestCost = -bestLik * self.KLWeight
+        sliceOptimizationDisplay(logLik,bestLik,samp,burnIn,self.KLWeight)
+
+class samplingMPC(Controller):
+    def __init__(self,SYS=None,
+                 Horizon=1,
+                 KLWeight=1,ExplorationCovariance=1.,
+                 PredictionHorizon=1,PredictionBurnIn=1,
+                 initialPolicy=None,
+                 *args,**kwargs):
+
+        self.predictiveController = samplingOpenLoop(SYS,
+                                                     KLWeight,
+                                                     PredictionBurnIn,
+                                                     ExplorationCovariance,
+                                                     initialPolicy,
+                                                     Horizon=PredictionHorizon,
+                                                     displayFun = nullDisplay,
+                                                     *args,**kwargs)
+
+        Controller.__init__(self,Horizon=Horizon,NumInputs=SYS.NumInputs,
+                            *args,**kwargs)
+
+        # We'll be resetting this during the action function
+        # so we need to recall it so that we can set it back
+        self.x0 = SYS.x0
+    def action(self,x,k):
+        # Set initial condition to current state
+        self.predictiveController.SYS.x0 = x
+        # Currently, not doing anything fancy with the control
+        # Relying on the fact that it should not change too much
+        # in a single step
+        self.predictiveController.updatePolicy()
+        u = self.predictiveController.U[:self.NumInputs]
         
-        if burnIn < np.inf:
-            if samp % 10 == 0:
-                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
-                    (samp,burnIn,cost,bestCost)
-        else:
-            if samp % 10 == 0:
-                print 'run %d, Cost: %g, Cost Change %g' % \
-                    (samp,cost,costChange)
+        # Set the initial condition back to the original state
+        self.predictiveController.SYS.x0 = self.x0
+
+        return u
