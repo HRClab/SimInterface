@@ -22,6 +22,9 @@ class Controller:
         u = np.zeros(self.NumInputs)
         return u
 
+    def reset(self):
+        pass
+
 class openLoopPolicy(Controller):
     def __init__(self,U,*args,**kwargs):
         Controller.__init__(self,*args,**kwargs)
@@ -54,12 +57,10 @@ class staticGain(Controller):
 class varyingAffine(Controller):
     def __init__(self,gain,*args,**kwargs):
         self.Gain = gain
-        print self.Gain.shape
         Controller.__init__(self,*args,**kwargs)
 
     def action(self,x,k):
         vec = np.hstack((1,x))
-        print self.Gain.shape
         u = np.dot(self.Gain[k],vec)
         return u
 
@@ -277,6 +278,53 @@ class approximateLQR(linearQuadraticRegulator):
 
 #### Slice Sampling Optimizer ####
 
+def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
+    """
+    sampleObj - an object to be sampled. Must have the following attributes
+    sampleObj.priorChol - cholesky factorization of Gaussian prior
+    sampleObj.loglikelihood - a log-likelihood function 
+    sampleObj.displaySampleInfo - a function that prints relevant info to screen
+
+    X - an initial sample
+    burnIn - length of burn-in period
+    resetObject - flag to reset sampleObj after each sample
+    """
+
+    lenW = sampleObj.priorChol.shape[0]    
+    logLik = sampleObj.loglikelihood(X)
+    bestLik = -np.inf
+
+    eps = 1e-3
+        
+    samp = 0
+    while samp < burnIn:
+        samp += 1
+        W = np.dot(sampleObj.priorChol,randn(lenW))
+        if resetObject:
+            # resets data associated with sample object
+            # This is needed for some stochastic variants
+            sampleObj.reset()
+            # when the sample object has been reset
+            # Older values of the log-likelihood function may not
+            # be relevant
+            X,newLogLik = eslice(X,W,sampleObj.loglikelihood)
+        else:
+            X,newLogLik = eslice(X,W,sampleObj.loglikelihood,cur_lnpdf=logLik)
+        if newLogLik > bestLik:
+            bestLik = newLogLik
+            bestX = X
+                
+        likChange = newLogLik - logLik
+        logLik = newLogLik
+
+        if (burnIn == np.inf) and (likChange <= 0):
+            break
+
+        sampleObj.displaySampleInfo(logLik,bestLik,samp,burnIn)
+            
+    return X, bestX
+
+
 def sliceOptimize(U,priorChol,logLikFun,KLWeight,burnIn):
     """
     U - initial conditon 
@@ -304,7 +352,6 @@ def sliceOptimize(U,priorChol,logLikFun,KLWeight,burnIn):
                 
         costChange = newCost - cost
         cost = newCost
-
             
         if burnIn < np.inf:
             if samp % 10 == 0:
@@ -347,25 +394,37 @@ class samplingOpenLoop(flatOpenLoopPolicy):
                                     *args,**kwargs)
 
 
-        NoiseGain = trajectoryNoiseMatrix(ExplorationCovariance,
-                                          self.Horizon)
+        self.priorChol = trajectoryNoiseMatrix(ExplorationCovariance,
+                                               self.Horizon)
 
-        lenW = NoiseGain.shape[0]
+        lenW = self.priorChol.shape[0]
 
         if initialPolicy is None:
-            U = np.zeros(lenW)
+            self.U = np.zeros(lenW)
         else:
-            U = SYS.simulatePolicy(initialPolicy)[1].flatten()
+            self.U = SYS.simulatePolicy(initialPolicy)[1].flatten()
 
-        self.U = sliceOptimize(U,NoiseGain,
-                               self.loglikelihood,
-                               self.KLWeight,
-                               burnIn)
+
+        self.U = sliceSample(self,self.U,burnIn)[1]
         
     def loglikelihood(self,U):
-        self.U = U        
+        self.U = U
         cost = self.SYS.simulatePolicy(self)[2]
         return -cost / self.KLWeight
+
+    def displaySampleInfo(self,logLik,bestLik,samp,burnIn):
+        cost = -logLik * self.KLWeight
+        bestCost = -bestLik * self.KLWeight
+        
+        if burnIn < np.inf:
+            if samp % 10 == 0:
+                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
+                    (samp,burnIn,cost,bestCost)
+        else:
+            if samp % 10 == 0:
+                print 'run %d, Cost: %g, Cost Change %g' % \
+                    (samp,cost,costChange)
+
 
 class samplingStochasticAffine(flatVaryingAffine):
     def __init__(self,SYS=None,Horizon=1,

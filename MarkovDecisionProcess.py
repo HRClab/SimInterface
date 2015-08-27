@@ -45,6 +45,9 @@ class MarkovDecisionProcess:
     def generateNoise(self,Horizon,W):
         pass
 
+    def reset(self):
+        pass
+
 #### Helper functions for Linear Quadratic Systems ####
 
 def shapeFromB(B):

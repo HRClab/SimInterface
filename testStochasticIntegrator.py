@@ -1,6 +1,7 @@
 import MarkovDecisionProcess as MDP
 import Controller as ctrl
 import numpy as np
+from numpy.random import randn
 import matplotlib.pyplot as plt
 
 
@@ -35,14 +36,14 @@ Controllers.append(staticCtrl)
 lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
-                                             NumSamples = 10,
-                                             Horizon=T,
-                                             KLWeight=1e-4,burnIn=500,
-                                             ExplorationCovariance=3.*np.eye(2),
-                                             label='Sampling')
+# samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
+#                                              NumSamples = 30,
+#                                              Horizon=T,
+#                                              KLWeight=1e-4,burnIn=500,
+#                                              ExplorationCovariance=3.*np.eye(2),
+#                                              label='Sampling')
 
-Controllers.append(samplingCtrl)
+# Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
 XMean = np.zeros((NumControllers,T,1))
@@ -80,3 +81,11 @@ for k in range(NumControllers):
 
 plt.legend(handles=line)
 
+print '\nTesting Mean Cost Predictions\n'
+# Testing 
+gain = randn(T*2)
+
+randomPolicy = ctrl.flatVaryingAffine(gain,1,T,label='Random')
+
+
+cost = sys.simulatePolicy(randomPolicy)[2]
