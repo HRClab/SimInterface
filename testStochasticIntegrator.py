@@ -1,29 +1,34 @@
 import MarkovDecisionProcess as MDP
 import Controller as ctrl
 import numpy as np
+from numpy.random import randn
 import matplotlib.pyplot as plt
 
 
-class stochasticIntegrator(MDP.linearQuadraticStochasticSystem):
-    def __init__(self):
-        self.dt = 0.1
+def buildSystems():
+        dt = 0.1
         x0 = 1.0
         A = 1.
-        B = self.dt
-        Q = self.dt * 1.
-        R = self.dt * 1.
-        W = np.sqrt(self.dt) * .1
+        B = dt
+        Q = dt * 1.
+        R = dt * 1.
+        W = np.sqrt(dt) * .1
         noiseMat = np.array([[W]])
         dynMat = MDP.buildDynamicsMatrix(A,B)
         costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
 
-        MDP.linearQuadraticStochasticSystem.__init__(self,
-                                                     dynMat,
-                                                     costMat,
-                                                     noiseMat,
-                                                     x0=x0)
+        sys = MDP.linearQuadraticStochasticSystem(dynMat,
+                                                  costMat,
+                                                  noiseMat,
+                                                  x0=x0)
 
-sys = stochasticIntegrator()
+        sysDet = MDP.linearQuadraticSystem(dynMat,
+                                           costMat,
+                                           x0=x0)
+
+        return sys, sysDet, dt
+
+sys, sysDet, dt = buildSystems()
 
 T = 100
 
@@ -35,21 +40,37 @@ Controllers.append(staticCtrl)
 lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
-                                             NumSamples = 10,
-                                             Horizon=T,
-                                             KLWeight=1e-4,burnIn=500,
-                                             ExplorationCovariance=3.*np.eye(2),
-                                             label='Sampling')
+deterministicSampling = ctrl.samplingOpenLoop(SYS=sysDet,
+                                              Horizon=T,
+                                              KLWeight=1e-4,
+                                              burnIn=100,
+                                              ExplorationCovariance=3)
 
-Controllers.append(samplingCtrl)
+sampleMPCctrl = ctrl.samplingMPC(SYS=sysDet,
+                                 Horizon=T,
+                                 KLWeight=1e-4,
+                                 ExplorationCovariance=3.,
+                                 PredictionHorizon=10,
+                                 PredictionBurnIn=3,
+                                 initialPolicy=deterministicSampling,
+                                 label='Sampling MPC')
+
+Controllers.append(sampleMPCctrl)
+# samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
+#                                              NumSamples = 10,
+#                                              Horizon=T,
+#                                              KLWeight=1e-4,burnIn=100,
+#                                              ExplorationCovariance=1.*np.eye(2),
+#                                              label='Sampling')
+
+# Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
 XMean = np.zeros((NumControllers,T,1))
 XStd = np.zeros((NumControllers,T,1))
 CostMean = np.zeros(NumControllers)
 CostStd = np.zeros(NumControllers)
-Time = sys.dt * np.arange(T)
+Time = dt * np.arange(T)
 NumRuns = 10
 fig = plt.figure(1)
 plt.clf()
@@ -80,3 +101,11 @@ for k in range(NumControllers):
 
 plt.legend(handles=line)
 
+print '\nTesting Mean Cost Predictions\n'
+# Testing 
+gain = randn(T*2)
+
+randomPolicy = ctrl.flatVaryingAffine(gain,1,T,label='Random')
+
+
+cost = sys.simulatePolicy(randomPolicy)[2]

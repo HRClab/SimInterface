@@ -38,8 +38,8 @@ plt.ylabel('cost')
 
 # Now do the optimization for various values of the regularization
 # parameter, lambda 
-BurnIn = 1000
-NSamp = 2000
+BurnIn = 100
+NSamp = BurnIn+100
 
 fig = plt.figure(2)
 plt.clf()
@@ -87,6 +87,7 @@ for run in range(NLam):
     plt.plot(X,Y)
     plt.plot(Theta[-100:],Cost[-100:],'*')
     plt.title('$\lambda$=%g, Average Cost: %g' % (lam,aveCost))
+    plt.ylim([-.3,3.5])
     plt.yticks(np.arange(4))
     plt.ylabel('cost')
     if run < NLam-1:
