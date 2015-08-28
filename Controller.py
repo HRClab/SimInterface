@@ -172,7 +172,7 @@ class modelPredictiveControl(Controller):
 
 class iterativeLQR(varyingAffine):
     def __init__(self,SYS,initialPolicy = None,Horizon=1,
-                 stoppingTolerance=1e-3,*args,**kwargs):
+                 stoppingTolerance=1e-3,maxIter=np.inf,*args,**kwargs):
         self.Horizon = Horizon
         if initialPolicy is None:
             gain = np.zeros((SYS.NumInputs,SYS.NumStates))
@@ -201,8 +201,10 @@ class iterativeLQR(varyingAffine):
                                                    *args,**kwargs)
 
         run = 0 
-        while np.abs(costChange)>stoppingTolerance:
+        while run<maxIter:
             run += 1
+            if np.abs(costChange) <= stoppingTolerance:
+                break
             if alpha > 1e12:
                 print 'regularization parameter too large'
                 break
