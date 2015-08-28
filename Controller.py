@@ -200,11 +200,14 @@ class iterativeLQR(varyingAffine):
                                                    Horizon=self.Horizon,
                                                    *args,**kwargs)
 
+        self.costSequence = [initCost]
         run = 0 
         while run<maxIter:
             run += 1
-            if np.abs(costChange) <= stoppingTolerance:
+            if (maxIter == np.inf) and \
+               (np.abs(costChange) <= stoppingTolerance):
                 break
+            
             if alpha > 1e12:
                 print 'regularization parameter too large'
                 break
@@ -260,6 +263,8 @@ class iterativeLQR(varyingAffine):
                 alpha *= 2
                 print 'numerical problem'
                 # print 'increasing regularization parameter to %g' % alpha
+
+            self.costSequence.append(bestCost)
 
         varyingAffine.__init__(self,
                                            gain=bestGain,
@@ -325,47 +330,6 @@ def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
     return X, bestX
 
 
-def sliceOptimize(U,priorChol,logLikFun,KLWeight,burnIn):
-    """
-    U - initial conditon 
-    priorChol - cholesky factorization of prior covariance
-    
-    """
-
-    lenW = priorChol.shape[0]
-    
-    logLik = logLikFun(U)
-    bestCost = np.inf
-    cost = np.inf
-
-    eps = 1e-3
-        
-    samp = 0
-    while samp < burnIn:
-        samp += 1
-        W = np.dot(priorChol,randn(lenW))
-        U,logLik = eslice(U,W,logLikFun,cur_lnpdf=logLik)
-        newCost = -logLik * KLWeight
-        if newCost < bestCost:
-            bestCost = newCost
-            bestU = U
-                
-        costChange = newCost - cost
-        cost = newCost
-            
-        if burnIn < np.inf:
-            if samp % 10 == 0:
-                print 'run %d of %d, Cost: %g, Best Cost: %g' % \
-                    (samp,burnIn,cost,bestCost)
-        else:
-            if costChange>=0:
-                break
-
-            if samp % 10 == 0:
-                print 'run %d, Cost: %g, Cost Change %g' % \
-                    (samp,cost,costChange)
-            
-    return bestU
 
 
 def trajectoryNoiseMatrix(Cov,Horizon):
