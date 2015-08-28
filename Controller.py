@@ -143,7 +143,7 @@ class linearQuadraticRegulator(Controller):
             self.Gain[k] = gainMatrix(M,p)
 
         # print np.diag(self.RiccatiSolution[0][:-p,:-p])
-        self.Gain = self.Gain
+
     def action(self,x,k):
         curVec = np.hstack((1,x))
         return np.dot(self.Gain[k],curVec)
