@@ -4,6 +4,7 @@ import pylagrange as lag
 from scipy.linalg import eigh, eig
 import sympy as sym
 import sympy_utils as su
+import numpy_utils as nu
 
 class MarkovDecisionProcess:
     def __init__(self,x0=None,NumStates=1,NumInputs=1,NumNoiseInputs=0):
@@ -47,6 +48,44 @@ class MarkovDecisionProcess:
         pass
 
 
+class driftDiffusion(MarkovDecisionProcess):
+    """
+    A stochastic differential equation of the form:
+    dx = f(x,u)dt + g(x,u)dw
+
+    Here f = driftFunc
+         g = noiseFunc
+    """
+    def __init__(self,dt,driftFunc,noiseFunc,costFunc,*args,**kwargs):
+        self.dt = dt
+        self.driftFunc = driftFunc
+        self.noiseFunc = noiseFunc
+        self.costFunc = costFunc
+
+        MarkovDecisionProcess.__init__(self,*args,**kwargs)
+
+    def costStep(self,x,u,k):
+        return self.dt * self.costFunc(x,u,k)
+
+    def generateNoise(self,Horizon,W):
+        """
+        Currently this was copied from linearQuadraticStochasticSystem
+
+        It would probably be better to make linearQuadraticStochasticSystem
+        a subclass of driftDiffusion. 
+        """
+        if W is None:
+            self.W = randn(Horizon,self.NumNoiseInputs)
+        else:
+            self.W = W
+
+    def step(self,x,u,k):
+        w = self.W[k]
+        dx = self.dt * self.driftFunc(x,u,k) + \
+             np.sqrt(self.dt) * np.dot(self.noiseFunc(x,u,k),w)
+
+        return x + dx
+        
 #### Helper functions for Linear Quadratic Systems ####
 
 def shapeFromB(B):
@@ -62,12 +101,6 @@ def shapeFromB(B):
 
     return n,p
 
-def castToShape(M,Shape):
-    if (not isinstance(M,np.ndarray)) and (np.prod(Shape)>1):
-        MCast = np.zeros(Shape)
-    else:
-        MCast = np.reshape(M,Shape)
-    return MCast
 
 def buildDynamicsMatrix(A=0,B=0,g=0):
     """
@@ -79,7 +112,7 @@ def buildDynamicsMatrix(A=0,B=0,g=0):
     n,p = shapeFromB(B)
     AMat = np.reshape(A,(n,n))
     BMat = np.reshape(B,(n,p))
-    gMat = castToShape(g,(n,1))
+    gMat = nu.castToShape(g,(n,1))
     H = np.hstack((gMat,AMat,BMat))
     return H
 
@@ -108,14 +141,14 @@ def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0):
     
     """
     n,p = shapeFromQR(Cxx,Cxu)
-    CxxMat = castToShape(Cxx,(n,n))
-    CuuMat = castToShape(Cuu,(p,p))
-    C11Mat = castToShape(C11,(1,1))
-    CxuMat = castToShape(Cxu,(n,p))
+    CxxMat = nu.castToShape(Cxx,(n,n))
+    CuuMat = nu.castToShape(Cuu,(p,p))
+    C11Mat = nu.castToShape(C11,(1,1))
+    CxuMat = nu.castToShape(Cxu,(n,p))
     CuxMat = CxuMat.T
-    Cx1Mat = castToShape(Cx1,(n,1))
+    Cx1Mat = nu.castToShape(Cx1,(n,1))
     C1xMat = Cx1Mat.T
-    Cu1Mat = castToShape(Cu1,(p,1))
+    Cu1Mat = nu.castToShape(Cu1,(p,1))
     C1uMat = Cu1Mat.T
 
     C = np.vstack((np.hstack((C11Mat,C1xMat,C1uMat)),
@@ -354,7 +387,7 @@ class LagrangianSystem(MarkovDecisionProcess, lag.lagrangian_system):
         grad = self.cost_grad(x,u)
         hes = self.cost_hes(x,u)
 
-        grad = castToShape(grad,(self.NumStates+self.NumInputs,1))
+        grad = nu.castToShape(grad,(self.NumStates+self.NumInputs,1))
 
         costMat = np.vstack((np.hstack(([[0]],grad.T)),
                              np.hstack((grad,hes))))
@@ -395,7 +428,7 @@ class inputAugmentedLagrangian(LagrangianSystem):
         uLag = self.inputFunc(u)
         A,BLag,g = LagrangianSystem.linearization(self,x,u)
         inputJac = self.inputFunc_jac(u)
-        B = castToShape(np.dot(BLag,inputJac),(self.NumStates,self.NumInputs))
+        B = nu.castToShape(np.dot(BLag,inputJac),(self.NumStates,self.NumInputs))
         
         return (A,B,g)
         

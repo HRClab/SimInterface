@@ -259,17 +259,18 @@ class iterativeLQR(varyingAffine):
                     alpha = 1
                 else:
                     alpha *= 2
+
+                self.costSequence.append(bestCost)
             except (ValueError,np.linalg.LinAlgError):
                 alpha *= 2
                 print 'numerical problem'
                 # print 'increasing regularization parameter to %g' % alpha
 
-            self.costSequence.append(bestCost)
 
-        varyingAffine.__init__(self,
-                                           gain=bestGain,
-                                           Horizon=self.Horizon,
-                                           *args,**kwargs)
+
+        varyingAffine.__init__(self,gain=bestGain,
+                               Horizon=self.Horizon,
+                               *args,**kwargs)
 
     
 class approximateLQR(linearQuadraticRegulator):
@@ -302,6 +303,8 @@ def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
     eps = 1e-3
         
     samp = 0
+    likSequence = [logLik]
+    
     while samp < burnIn:
         samp += 1
         W = np.dot(sampleObj.priorChol,randn(lenW))
@@ -322,12 +325,14 @@ def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
         likChange = newLogLik - logLik
         logLik = newLogLik
 
+        likSequence.append(logLik)
+
         if (burnIn == np.inf) and (likChange <= 0):
             break
 
         sampleObj.displaySampleInfo(logLik,bestLik,samp,burnIn)
             
-    return X, bestX
+    return X, bestX, likSequence
 
 
 
@@ -394,7 +399,8 @@ class samplingOpenLoop(flatOpenLoopPolicy):
         self.updatePolicy()
 
     def updatePolicy(self):
-        self.U = sliceSample(self,self.U,self.burnIn)[1]
+        Ucur, self.U, likSequence = sliceSample(self,self.U,self.burnIn)
+        self.costSequence = -np.array(likSequence) * self.KLWeight
         
     def loglikelihood(self,U):
         self.U = U
