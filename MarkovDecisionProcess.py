@@ -48,6 +48,19 @@ class MarkovDecisionProcess:
         pass
 
 
+class differentialEquation(MarkovDecisionProcess):
+    def __init__(self,dt,vectorField,costFunc,*args,**kwargs):
+        self.dt = dt
+        self.vectorField = vectorField
+        self.costFunc = costFunc
+        MarkovDecisionProcess.__init__(self,*args,**kwargs)
+
+    def step(self,x,u,k):
+        return x+ self.dt * self.vectorField(x,u,k)
+
+    def costStep(self,x,u,k):
+        return self.dt * self.costFunc(x,u,k)
+    
 class driftDiffusion(MarkovDecisionProcess):
     """
     A stochastic differential equation of the form:
@@ -85,7 +98,23 @@ class driftDiffusion(MarkovDecisionProcess):
              np.sqrt(self.dt) * np.dot(self.noiseFunc(x,u,k),w)
 
         return x + dx
-        
+
+
+#### Deterministic Subsystem from Stochastic System
+
+class deterministicSubsystem(differentialEquation):
+    """
+    Create a deterministic system from a stochastic system
+    """
+    def __init__(self,SYS):
+        differentialEquation.__init__(self,
+                                      dt = SYS.dt,
+                                      vectorField = SYS.driftFunc,
+                                      costFunc = SYS.costFunc,
+                                      x0 = SYS.x0,
+                                      NumStates = SYS.NumStates,
+                                      NumInputs = SYS.NumInputs)
+
 #### Helper functions for Linear Quadratic Systems ####
 
 def shapeFromB(B):

@@ -17,14 +17,15 @@ def stack(tupleToStack):
                (C,D)))
     """
 
-    if isinstatance(tupleToStack[0],tuple):
-        # Horizontal Stacking
-        return np.hstack(tupleToStack)
-        
-    else:
+    if isinstance(tupleToStack[0],tuple):
         # Vertically stack horizontally stacked rows
         rows = []
         for row in tupleToStack:
             rows.append(stack(row))
 
-        return np.vstack(tuple(rows))
+        return np.vstack(tuple(rows))        
+    else:
+        # Horizontal Stacking
+        return np.hstack(tupleToStack)
+
+        
