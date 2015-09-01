@@ -110,16 +110,11 @@ for k in range(len(InputWeights)):
                                   label=name)
     Controllers.append(controller)
     plt.figure(1)
-    lineLFP.append(plt.plot([],[],lw=2,label=name)[0])
-    # plt.figure(2)
-    # lineInput.append(plt.plot([],[],lw=2)[0])
+    lineLFP.append(plt.plot([],[],lw=2,alpha=.8,label=name)[0])
 
 plt.legend(handles=lineLFP)
 
 NumControllers = len(Controllers)
-# X = np.zeros((NumControllers,T,sys.NumStates))
-# U = np.zeros((NumControllers,T,sys.NumInputs))
-# LFP = np.zeros((NumControllers,T))
 Time = sys.dt * np.arange(chunkLength * NumChunks)
 
 LFP = np.nan * np.ones((NumControllers,chunkLength * NumChunks))
@@ -128,7 +123,6 @@ Input = np.nan * np.ones((NumControllers,chunkLength * NumChunks))
 def initMovie():
     for k in range(NumControllers):
         lineLFP[k].set_data([],[])
-        #lineInput[k].set_data([],[])
     return lineLFP
 
 
@@ -144,21 +138,10 @@ def animate(chunk):
         Input[k,chunkLength*chunk:chunkLength*(chunk+1)] = U.squeeze()
 
         
-        # plt.figure(1)
-        # handle = plt.plot(Time,LFP[k],label=name)[0]
         lineLFP[k].set_data(Time,LFP[k])
 
-        # plt.figure(2)
-        # handle = plt.plot(Time,U[k].squeeze(),label=name)[0]
-        # lineInput[k].set_data(Time,U[k])
     return lineLFP,
 
 ani = animation.FuncAnimation(fig,animate,NumChunks,blit=False,
                               interval = sys.dt * 2000,
                               init_func=initMovie,repeat=False)
-# plt.figure(1)
-# #plt.legend(handles=lineLFP)
-# plt.ylim(-1.5,2.5)
-
-# plt.figure(2)
-# #plt.legend(handles=lineInput)
