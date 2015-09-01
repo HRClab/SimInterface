@@ -1,3 +1,7 @@
+#### This script defines class MarkovDecisionProcess
+#### We want these code to work with time-invariant, time-varying,
+#### deterministic and stochastic processes
+
 import numpy as np
 from numpy.random import randn
 import pylagrange as lag
@@ -16,12 +20,10 @@ class MarkovDecisionProcess:
         else:
             self.x0 = x0
 
-
-
-    def costStep(self,x,u,k):
+    def costStep(self,x,u,k=None):
         return 0
 
-    def step(self,x,u,k):
+    def step(self,x,u,k=None):
         return x
 
     def simulatePolicy(self,policy,W=None):
@@ -186,9 +188,9 @@ def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0):
     
     return C
 
-#### LQ System Helper Functions ####
-
 def sizesFromDynamicsMatrix(dynMat):
+    # For time-varying system, we'll have A.shape = T*n*n. 
+    # In that case, a negtive index would still work    
     NumStates = dynMat.shape[-2]
     NumInputs = dynMat.shape[-1] - NumStates - 1
     return NumStates, NumInputs
@@ -212,7 +214,7 @@ class linearQuadraticSystem(MarkovDecisionProcess):
         
         MarkovDecisionProcess.__init__(self,x0,NumStates,NumInputs)
 
-    def step(self,x,u,k):
+    def step(self,x,u,k=None):
         if self.timeInvariant:
             dynMat = self.dynamicsMatrix
         else:
@@ -222,7 +224,7 @@ class linearQuadraticSystem(MarkovDecisionProcess):
         new_x = np.dot(dynMat,curVec)
         return new_x
 
-    def costStep(self,x,u,k):
+    def costStep(self,x,u,k=None):
         if self.timeInvariant:
             costMat = self.costMatrix
         else:
@@ -232,13 +234,13 @@ class linearQuadraticSystem(MarkovDecisionProcess):
         cost = np.dot(curVec,np.dot(costMat,curVec))
         return cost
 
-    def getApproximationMatrices(self,x,u,k):
+    def getApproximationMatrices(self,x,u,k=None):
         if self.timeInvariant:
             return self.dynamicsMatrix, self.costMatrix
         else:
             return self.dynamicsMatrix[k:], self.costMatrix[k:]
 
-    def getCorrectionMatrices(self,x,u,k):
+    def getCorrectionMatrices(self,x,u,k=None):
         if self.timeInvariant:
             # Drop the g vector
             dynMat = np.zeros(self.dynamicsMatrix.shape)
@@ -284,7 +286,7 @@ class linearQuadraticStochasticSystem(linearQuadraticSystem):
         else:
             self.W = W
 
-    def step(self,x,u,k):
+    def step(self,x,u,k=None):
         """
         Stochastic Step
         """
