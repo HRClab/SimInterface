@@ -9,6 +9,8 @@ from scipy.linalg import eigh, eig
 import sympy as sym
 import sympy_utils as su
 import numpy_utils as nu
+import dill
+dill.settings['recurse'] = True
 
 class MarkovDecisionProcess:
     def __init__(self,x0=None,NumStates=1,NumInputs=1,NumNoiseInputs=0):
@@ -463,3 +465,25 @@ class inputAugmentedLagrangian(LagrangianSystem):
         
         return (A,B,g)
         
+def save(SYS,name):
+    """
+    Saves a Markov decision process to a binary file.
+
+    The file will be called name+'.p'
+    """
+    fid = open(name+'.p','wb')
+    dill.dump(SYS,fid)
+    fid.close()
+
+
+def load(name):
+    """
+    func = MarkovDecisionProcess.load(name)
+
+    This loads a system file saved using MarkovDecisionProcess.save
+    """
+    fid = open(name+'.p','rb')
+    func = dill.load(fid)
+    fid.close()
+    
+    return func

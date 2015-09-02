@@ -26,6 +26,11 @@ def states_generator(NumBody):
     P = np.zeros(NumBody*pstride,dtype=object) # packed position and quaternions
     V = np.zeros(NumBody*vstride,dtype=object) # packed velocity and rotational velocity
     
+    for l in range(NumBody):
+        X[l*xstride:(l+1)*xstride] = np.hstack((Pos[l],Quat[l],Vel[l],Omega[l]))
+        P[l*pstride:(l+1)*pstride] = np.hstack((Pos[l],Quat[l]))
+        V[l*vstride:(l+1)*vstride] = np.hstack((Vel[l],Omega[l]))    
+    
     return X,P,V,Pos,Quat,Vel,Omega
 
 def build_M_matrix(m,I):
@@ -36,19 +41,20 @@ def build_M_matrix(m,I):
     M = np.ones(6*NumBody)
     for l in range(NumBody):
         M[6*l:6*l+3] = m[l]*np.ones(3)
-        M[6*l+3:6*(l+1)] = I[3*l,3*(l+1)]
+        M[6*l+3:6*(l+1)] = I[3*l:3*(l+1)]
     M = np.diag(M)
-    Minv = np.invert(M)
-    return M,Minv
+    return M
 
 def inertia_extractor(M):
-    Numbody = M.shape[0]/6
-    m = np.zeros(Numbody)
-    I = np.zeros((Numbody,3,3))
-    for l in range(Numbody):
-        m[l] = M[6*l][6*l]
-        I[l] = M[6*l+3:6*l+6][6*l+3:6*l+6]
-    Minv = np.invert(M)
+    NumBody = M.shape[0]/6
+    M = np.diag(M)
+    m = np.zeros(NumBody)
+    I = np.zeros((NumBody,3,3))
+    for l in range(NumBody):
+        m[l] = M[6*l]
+        I[l] = np.diag(M[6*l+3:6*l+6])
+    Minv = 1./M
+    Minv = np.diag(Minv)
     return m,I,Minv
 
 
@@ -57,18 +63,23 @@ def states_extractor(x):
     xstride = 13
     pstride = 7
     vstride = 6  
+    if isinstance(x[0],sym.Symbol):
+        dt = object
+    else:
+        dt = float
+        
     #### dismantle x into P, V and Pos, Quat, Vel, Omega such that
     #### P[l], V[l], Pos[l], Quat[l], Vel[l] and Omega[l] are corresponding
     #### states of the lth link
-    P = np.zeros((NumBody,pstride))
-    V = np.zeros((NumBody,vstride))
-    Pos = np.zeros((NumBody,3))
-    Quat = np.zeros((NumBody,4))
-    Vel = np.zeros((NumBody,3))
-    Omega = np.zeros((NumBody,3))
+    P = np.zeros((NumBody,pstride),dtype=dt)
+    V = np.zeros((NumBody,vstride),dtype=dt)
+    Pos = np.zeros((NumBody,3),dtype=dt)
+    Quat = np.zeros((NumBody,4),dtype=dt)
+    Vel = np.zeros((NumBody,3),dtype=dt)
+    Omega = np.zeros((NumBody,3),dtype=dt)
     for l in range(NumBody):
         P[l] = x[l*xstride:l*xstride+pstride]
-        V[l] = x[l*xstride+vstride:(l+1)*xstride]
+        V[l] = x[l*xstride+pstride:(l+1)*xstride]
         Pos[l] = x[l*xstride:l*xstride+3]
         Quat[l] = x[l*xstride+3:l*xstride+7]
         Vel[l] = x[l*xstride+pstride:l*xstride+pstride+3]
@@ -87,6 +98,9 @@ class NewtonEulerSystems():
         # Constraint describes the rigid body connection
         # Currently Constraint can only handle P related constraints
         # M is a diagonal mass matrix
+        M = np.array(M)
+        self.KcP = 1.0
+        self.KcD = 1.0
         self.M = M
         self.m,self.I,self.Minv = inertia_extractor(M)
         self.xstride = 13
@@ -105,6 +119,8 @@ class NewtonEulerSystems():
         
         #### Dismantle states
         P,V,Pos,Quat,Vel,Omega = states_extractor(x)
+        P_vec = np.reshape(P,(self.NumBody*self.pstride))
+        V_vec = np.reshape(V,(self.NumBody*self.vstride))
         
         #### Computing Pdot and its Jacobian w.r.t. V, needed for computing constraint force
         Pdot = np.zeros(self.NumBody*self.pstride,dtype=object)
@@ -113,14 +129,14 @@ class NewtonEulerSystems():
             QuatDot = uq.mult(Quat[l],Omega[l]/2.)
             Pdot[l*self.pstride:(l+1)*self.pstride] = np.hstack((PosDot,QuatDot))
             
-        Pdot_V_Jac = su.jacobian(Pdot,V)
+        Pdot_V_Jac = su.jacobian(Pdot,V_vec)
         
         #### Compute constraint related matrices and functify them
         Constraint_x_Jac = su.jacobian(Constraint,x)
 
         # Compute constraint matrices
-        ConstraintMat = np.dot(su.jacobian(Constraint,P),Pdot_V_Jac)
-        ConstraintTen = su.jacobian(ConstraintMat,P)
+        ConstraintMat = np.dot(su.jacobian(Constraint,P_vec),Pdot_V_Jac)
+        ConstraintTen = su.jacobian(ConstraintMat,P_vec)
         ConstraintMatDot = np.dot(ConstraintTen,Pdot)
         
         # Convert symbolic expressions to callable numerical functions
@@ -146,7 +162,7 @@ class NewtonEulerSystems():
         ####                    linearized_model_g
         
         ## The C(V) matrix
-        CV = np.zeros(self.NumBody*self.pstride,dtype=object)
+        CV = np.zeros(self.NumBody*self.vstride,dtype=object)
         for l in range(self.NumBody):
             CV[l*self.vstride:l*self.vstride+3] = self.m[l]*np.cross(Omega[l],Vel[l])
             CV[l*self.vstride+3:l*self.vstride+6] = np.cross(Omega[l],np.dot(self.I[l],Omega[l]))
@@ -178,7 +194,7 @@ class NewtonEulerSystems():
         self.linearized_model_G_fun = su.functify(linearized_model_G,np.hstack((x,u,lam)))
         
     #### Computes derivative of generalized velocity for a single rigid body
-    def V_dot_NE(self,V,W,m,I): # P is generalized velocity
+    def V_dot_NE(self,V,W,m,I): # V is generalized velocity
         """
         This takes in a body velocity and a wrench and outputs the derivatives
         of the body velocity
@@ -216,7 +232,7 @@ class NewtonEulerSystems():
         
         #### Dismantle states
         P,V,Pos,Quat,Vel,Omega = states_extractor(x)
-        V_vec = np.reshape(P,self.NumBody*self.vstride)
+        V_vec = np.reshape(V,self.NumBody*self.vstride)
     
         ## Compute the total wrench on the links, not counting constraint wrenches
         ## This wrench will be used to compute free response without constraint
@@ -229,19 +245,17 @@ class NewtonEulerSystems():
         for l in range(self.NumBody):
             # Second derivatives without constraints
             Wl = Wren_vec[l*self.vstride:(l+1)*self.vstride] # pick out the wrench on lth link
-            Vdot_free_vec[l*self.vstride:(l+1)*self.vstride] = self.V_dot_NE(P[l],Wl,self.m[l],self.I[l])
+            Vdot_free_vec[l*self.vstride:(l+1)*self.vstride] = self.V_dot_NE(V[l],Wl,self.m[l],self.I[l])
         
         ## Constraint force
-        ConMat = self.ConMat_fun(x)
-        ConMatDot = self.ConMatDot_fun(x)
+        ConMat = self.ConstraintMat_fun(x)
+        ConMatDot = self.ConstraintMatDot_fun(x)
         lamMat = np.dot(ConMat,np.dot(self.Minv,ConMat.T))
         lam = -solve(lamMat,np.dot(ConMatDot,V_vec)+np.dot(ConMat,Vdot_free_vec))
         # lamBreak is an extra force that pulls the joints back together
         # if the constraint force is not sufficient. This will happen if
         # the speed is high, compared to the time-step
-        KcP = 1.0
-        KcD = 1.0
-        lamBreak = -KcP * self.Con_fun(x) - KcD * np.dot(ConMat,V_vec)
+        lamBreak = -self.KcP * self.Constraint_fun(x) - self.KcD * np.dot(ConMat,V_vec)
         ConForce = np.dot(ConMat.T,lam + lamBreak)
             
         ## Stuff velocity terms into dx
@@ -261,15 +275,63 @@ class NewtonEulerSystems():
     
         return dx
         
-        def linearization(self,x,u,lam):
-            A = self.linearized_model_A_fun(np.hstack((x,u,lam)))
-            B = self.linearized_model_B_fun(np.hstack((x,u,lam)))
-            G = self.linearized_model_G_fun(np.hstack((x,u,lam)))
-            
-            return A,B,G
-            
-        def equil_finder(self):
-            pass
+    def linearization(self,x,u,lam):
+        A = self.linearized_model_A_fun(np.hstack((x,u,lam)))
+        B = self.linearized_model_B_fun(np.hstack((x,u,lam)))
+        G = self.linearized_model_G_fun(np.hstack((x,u,lam)))
         
-        def con_force_finder(self):
-            pass
+        return A,B,G
+        
+    def con_force(self,x,u):
+        # extract generalized velocity and vectorize it
+        P,V = states_extractor(x)[0,1]
+        V_vec = np.reshape(V,self.vstride*self.NumBody)
+        
+        ## input
+        Fgrav = self.Fgrav_fun(P)
+                    
+        ## total wrench
+        Wren_ext = self.Gu(u) + Fgrav
+        
+        ## constraint Lagrange multiplier
+        # compute LHS
+        ConMat = self.ConMat_fun(x)
+        ConMatDot = self.ConMatDot_fun(x)
+        lamMat = np.dot(ConMat,np.dot(self.Minv,ConMat.T))
+        
+        # compute RHS
+        CV = self.CV_fun(x)   
+        
+        # solve linear equation    
+        lam = solve(lamMat,np.dot(ConMat, \
+                    np.dot(self.Minv,CV-Wren_ext))-np.dot(ConMatDot,V_vec))
+        # lamBreak is an extra force that pulls the joints back together
+        # if the constraint force is not sufficient. This will happen if
+        # the speed is high, compared to the time-step
+        lamBreak = -self.KcP * self.Con_fun(x) - self.KcD * np.dot(ConMat,V_vec)
+        lam_eq = lam + lamBreak
+        
+        return lam_eq
+
+def save(SYS,name):
+    """
+    Saves a Newton-Euler system to a binary file.
+
+    The file will be called name+'.p'
+    """
+    fid = open(name+'.p','wb')
+    dill.dump(SYS,fid)
+    fid.close()
+
+
+def load(name):
+    """
+    func = NewtonEulerSystem.load(name)
+
+    This loads a system file saved using NewtonEuler.save
+    """
+    fid = open(name+'.p','rb')
+    func = dill.load(fid)
+    fid.close()
+    
+    return func
