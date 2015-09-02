@@ -5,13 +5,13 @@ from numpy.random import randn
 import numpy_utils as nu
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from multiprocessing import Process
+
 
 class epileptor(MDP.driftDiffusion):
     """
     Epileptor Model as defined by 
-    Jirsa et. al. On the nature of seizure dynamics
-
-    In 
+    Jirsa et. al. "On the nature of seizure dynamics"
     """
     def __init__(self,inputWeight):
         dt = 0.0005
@@ -77,30 +77,22 @@ class epileptor(MDP.driftDiffusion):
 
 
 # Reset initial condition
-InputWeights = np.logspace(0,2,3)
+InputWeights = [1,10,20,100]
 
 Systems = []
 Controllers = []
-lineLFP = []
 lineInput = []
 Cov = 1
 
 chunkLength = 200 
 NumChunks = 300
 
-fig = plt.figure(1)
-plt.clf()
-plt.xlim((0,chunkLength*NumChunks*0.0005))
-plt.ylim((-1.5,2.5))
-# plt.figure(2)
-# plt.clf()
-
 for k in range(len(InputWeights)):
     inputWeight = InputWeights[k]
     sys = epileptor(inputWeight)
     Systems.append(sys)
     sysDet = MDP.deterministicSubsystem(sys)
-    name = 'Input Weight: %g' % inputWeight
+    name = 'Input Penalty: %g' % inputWeight
     controller = ctrl.samplingMPC(SYS=sysDet,
                                   Horizon=chunkLength,
                                   KLWeight=1e-4,
@@ -109,10 +101,8 @@ for k in range(len(InputWeights)):
                                   PredictionBurnIn=1,
                                   label=name)
     Controllers.append(controller)
-    plt.figure(1)
-    lineLFP.append(plt.plot([],[],lw=2,alpha=.8,label=name)[0])
+    
 
-plt.legend(handles=lineLFP)
 
 NumControllers = len(Controllers)
 Time = sys.dt * np.arange(chunkLength * NumChunks)
@@ -120,28 +110,76 @@ Time = sys.dt * np.arange(chunkLength * NumChunks)
 LFP = np.nan * np.ones((NumControllers,chunkLength * NumChunks))
 Input = np.nan * np.ones((NumControllers,chunkLength * NumChunks))
 
-def initMovie():
-    for k in range(NumControllers):
-        lineLFP[k].set_data([],[])
-    return lineLFP
 
 
-def animate(chunk):
+
+def runningMovie():
+    fig = plt.figure(1)
+    plt.clf()
+    plt.xlim((0,chunkLength*NumChunks*0.0005))
+    plt.ylim((-1.5,2.8))
+    plt.yticks([-1,0,1,2])
+    lineLFP = []
+    
     for k in range(NumControllers):
-        sys = Systems[k]
+        name = Controllers[k].label
+        lineLFP.append(plt.plot([],[],lw=3,alpha=.8,label=name)[0])
+
+    plt.legend(handles=lineLFP)
+
+    
+    def initMovie():
+        for k in range(NumControllers):
+            lineLFP[k].set_data([],[])
+        return lineLFP
+
+    def animate(chunk):
+        for k in range(NumControllers):
+            sys = Systems[k]
+            controller = Controllers[k]
+            name = controller.label
+            X,U,Cost = sys.simulatePolicy(controller)
+            sys.x0 = X[-1]
+            LFP[k,chunkLength*chunk:chunkLength*(chunk+1)] = X[:,0] + X[:,2]
+            Input[k,chunkLength*chunk:chunkLength*(chunk+1)] = U.squeeze()
+            lineLFP[k].set_data(Time,LFP[k])
+
+        return lineLFP
+
+    ani = animation.FuncAnimation(fig,animate,NumChunks,blit=False,
+                                  interval = sys.dt * 2000,
+                                  init_func=initMovie,repeat=False)
+    return ani
+
+def extraPlots():
+    plt.savefig('LFPComparison.pdf',transparent=True,
+                bbox_inches=None,format='pdf')
+
+    plt.figure(2)
+    plt.clf()
+
+    lineInput = []
+
+    for k in range(NumControllers):
         controller = Controllers[k]
         name = controller.label
-        X,U,Cost = sys.simulatePolicy(controller)
-        sys.x0 = X[-1]
-        # controller.predictiveController.SYS.x0 = X[-1]
-        LFP[k,chunkLength*chunk:chunkLength*(chunk+1)] = X[:,0] + X[:,2]
-        Input[k,chunkLength*chunk:chunkLength*(chunk+1)] = U.squeeze()
+        handle = plt.plot(Time,Input[k],linewidth=3,alpha=.8,label=name)[0]
+        lineInput.append(handle)
 
-        
-        lineLFP[k].set_data(Time,LFP[k])
+    plt.legend(handles=lineInput)
 
-    return lineLFP,
+ani = runningMovie()
+# This is a hack to stop the rest of the code from executing before
+# the animation completes.
+# Apparently, the animation function does some sort of
+# Multiprocessing that I do not know how to debug.
+# The data will be saved for better plotting later
+plt.show(block=True)
+extraPlots()
 
-ani = animation.FuncAnimation(fig,animate,NumChunks,blit=False,
-                              interval = sys.dt * 2000,
-                              init_func=initMovie,repeat=False)
+
+
+# Save the data because the animation does weird threading
+fid = open('LFPData.npz','w')
+np.savez(fid,Time=Time,LFP=LFP,Input=Input)
+fid.close()
