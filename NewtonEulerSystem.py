@@ -37,11 +37,18 @@ def build_M_matrix(m,I):
     # convert array of mass and rotational inertia to M matrix
     # m: NumBody by 1
     # I: 3*NumBody by 1
-    NumBody = len(m)
+    if isinstance(m,np.ndarray):
+        NumBody = len(m)
+    else:
+        NumBody = 1
     M = np.ones(6*NumBody)
-    for l in range(NumBody):
-        M[6*l:6*l+3] = m[l]*np.ones(3)
-        M[6*l+3:6*(l+1)] = I[3*l:3*(l+1)]
+    if NumBody == 1:
+        M[0:3] = m*np.ones(3)
+        M[3:] = I
+    else:
+        for l in range(NumBody):
+            M[6*l:6*l+3] = m[l]*np.ones(3)
+            M[6*l+3:6*(l+1)] = I[3*l:3*(l+1)]
     M = np.diag(M)
     return M
 
@@ -99,6 +106,10 @@ class NewtonEulerSystems():
         # Currently Constraint can only handle P related constraints
         # M is a diagonal mass matrix
         M = np.array(M)
+        if Constraint == None:
+            self.ConstraintFlag = False
+        else:
+            self.ConstraintFlag = True
         self.KcP = 1.0
         self.KcD = 1.0
         self.M = M
@@ -132,19 +143,21 @@ class NewtonEulerSystems():
         Pdot_V_Jac = su.jacobian(Pdot,V_vec)
         
         #### Compute constraint related matrices and functify them
+        if self.ConstraintFlag == False:
+            Constraint = np.zeros(1,dtype=object)
+          
         Constraint_x_Jac = su.jacobian(Constraint,x)
-
         # Compute constraint matrices
         ConstraintMat = np.dot(su.jacobian(Constraint,P_vec),Pdot_V_Jac)
         ConstraintTen = su.jacobian(ConstraintMat,P_vec)
         ConstraintMatDot = np.dot(ConstraintTen,Pdot)
-        
+    
         # Convert symbolic expressions to callable numerical functions
         self.Constraint_fun = su.functify(Constraint,x)  # vector of all equality constraints
         self.Constraint_x_Jac_fun = su.functify(Constraint_x_Jac,x) # Jacobian of constraints w.r.t. x
         self.ConstraintMat_fun = su.functify(ConstraintMat,x) # the A(Q) matrix
         self.ConstraintMatDot_fun = su.functify(ConstraintMatDot,x) # derivative of A(Q) matrix
-        
+    
         # Initialize the Lagrane multiplier for constraint forces
         # It is only at this point that the dimension of the contraints is cleared
         lam = sym.symarray('lam',len(Constraint)) # lambda is reserved in python
@@ -248,15 +261,18 @@ class NewtonEulerSystems():
             Vdot_free_vec[l*self.vstride:(l+1)*self.vstride] = self.V_dot_NE(V[l],Wl,self.m[l],self.I[l])
         
         ## Constraint force
-        ConMat = self.ConstraintMat_fun(x)
-        ConMatDot = self.ConstraintMatDot_fun(x)
-        lamMat = np.dot(ConMat,np.dot(self.Minv,ConMat.T))
-        lam = -solve(lamMat,np.dot(ConMatDot,V_vec)+np.dot(ConMat,Vdot_free_vec))
-        # lamBreak is an extra force that pulls the joints back together
-        # if the constraint force is not sufficient. This will happen if
-        # the speed is high, compared to the time-step
-        lamBreak = -self.KcP * self.Constraint_fun(x) - self.KcD * np.dot(ConMat,V_vec)
-        ConForce = np.dot(ConMat.T,lam + lamBreak)
+        if self.ConstraintFlag == False:
+            ConForce = np.zeros((self.vstride*self.NumBody))
+        else:
+            ConMat = self.ConstraintMat_fun(x)
+            ConMatDot = self.ConstraintMatDot_fun(x)
+            lamMat = np.dot(ConMat,np.dot(self.Minv,ConMat.T))
+            lam = -solve(lamMat,np.dot(ConMatDot,V_vec)+np.dot(ConMat,Vdot_free_vec))
+            # lamBreak is an extra force that pulls the joints back together
+            # if the constraint force is not sufficient. This will happen if
+            # the speed is high, compared to the time-step
+            lamBreak = -self.KcP * self.Constraint_fun(x) - self.KcD * np.dot(ConMat,V_vec)
+            ConForce = np.dot(ConMat.T,lam + lamBreak)
             
         ## Stuff velocity terms into dx
         dx = np.zeros(self.xstride * self.NumBody)
@@ -282,7 +298,7 @@ class NewtonEulerSystems():
         
         return A,B,G
         
-    def con_force(self,x,u):
+    def get_lam(self,x,u):
         # extract generalized velocity and vectorize it
         P,V = states_extractor(x)[0,1]
         V_vec = np.reshape(V,self.vstride*self.NumBody)
