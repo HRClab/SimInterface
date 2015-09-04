@@ -96,30 +96,35 @@ def states_extractor(x):
 
 #### class definition
 class NewtonEulerSystems():
-    def __init__(self,x,u,Gu,Constraint,M):
+    def __init__(self,M,x,u,Gu,frix=None,Constraint=None):
         # x should be 13*self.NumBody by 1 symbol array
         # self.NumBody is the number of rigid bodies
         # u is the input symbol array
         # Gu is generalized input that directly apply on the rigid bodies
         # Gu should be a symbolic expression of u and is 6*self.NumBody by 1
+        # frix isn't necessarily friction, but any generalized force 
+        # that is symbolic expression depending only on x
         # Constraint describes the rigid body connection
         # Currently Constraint can only handle P related constraints
         # M is a diagonal mass matrix
-        M = np.array(M)
         if Constraint == None:
             self.ConstraintFlag = False
         else:
             self.ConstraintFlag = True
+        if frix == None:
+            self.frixFlag = False
+        else:
+            self.frixFlag = True
         self.KcP = 1.0
         self.KcD = 1.0
         self.M = M
-        self.m,self.I,self.Minv = inertia_extractor(M)
+        self.m,self.I,self.Minv = inertia_extractor(np.array(M))
         self.xstride = 13
         self.pstride = 7
         self.vstride = 6
-        self.build_system_functions(x,u,Gu,Constraint)
+        self.build_system_functions(x,u,Gu,frix,Constraint)
     
-    def build_system_functions(self,x,u,Gu,Constraint):
+    def build_system_functions(self,x,u,Gu,frix=None,Constraint=None):
         # This function converts symbolic expressions to callable numerical
         # functions which are then used to build system dynamic functions and
         # approximate or correction systems
@@ -127,6 +132,10 @@ class NewtonEulerSystems():
         #### get number of rigid bodies
         self.NumBody = int( x.shape[0] / 13 )
         self.Gu_fun = su.functify(Gu,u)
+        if self.frixFlag == False:
+            frix = np.zeros(self.vstride*self.NumBody,dtype = object)
+        else:
+            self.frix_fun = su.functify(frix,x)
         
         #### Dismantle states
         P,V,Pos,Quat,Vel,Omega = states_extractor(x)
@@ -167,7 +176,8 @@ class NewtonEulerSystems():
         #### Pdot = Pdot_V_Jac*V
         #### Vdot = Minv*(F-C(V))
         #### where F is the generalized force:
-        #### F = Gu(u) + ConstrainMat(P).T*lam + Gravity(P), all in body frame
+        #### F = Gu(u) + Gravity(P) + ConstrainMat(P).T*lam + \
+        ####     frix(x), all in body frame
         #### Assume the linearized model takes this form:
         #### f(x)_approximate = linearized_model_A * X_perturbed + \ 
         ####                    linearized_model_B * U_perturbed + \
@@ -189,7 +199,8 @@ class NewtonEulerSystems():
         self.Fgrav_fun = su.functify(Fgrav,P)        
         
         ## Compute Vdot, take jacobians
-        Vdot = np.dot(self.Minv,(Gu + Fgrav + np.dot(ConstraintMat.T,lam) - CV))
+        Vdot = np.dot(self.Minv,(Gu + Fgrav + frix + \
+                                 np.dot(ConstraintMat.T,lam) - CV))
         Xdot = np.zeros(self.NumBody*self.xstride,dtype = object)
         for l in range(self.NumBody):
             Xdot[l*self.xstride:l*self.xstride + self.pstride] = \
@@ -250,8 +261,12 @@ class NewtonEulerSystems():
         ## Compute the total wrench on the links, not counting constraint wrenches
         ## This wrench will be used to compute free response without constraint
         Fgrav = self.Fgrav_fun(P)
+        if self.frixFlag == True:          
+            frix = self.frix_fun(x)
+        else:
+            frix = np.zeros(self.vstride*self.NumBody)
         Gu = self.Gu_fun(u)
-        Wren_vec = Gu + Fgrav
+        Wren_vec = Gu + Fgrav + frix
         
         ## apply the wrench on all links to compute free response
         Vdot_free_vec = np.zeros(self.vstride * self.NumBody)
@@ -291,12 +306,17 @@ class NewtonEulerSystems():
     
         return dx
         
-    def linearization(self,x,u,lam):
+    def linearization(self,x,u):
+        """
+        xdot approx= A(x-xNom) + B(u-uNom) + G(lam - lamNom) + g
+        """
+        lam = self.get_lam(x,u)
         A = self.linearized_model_A_fun(np.hstack((x,u,lam)))
         B = self.linearized_model_B_fun(np.hstack((x,u,lam)))
         G = self.linearized_model_G_fun(np.hstack((x,u,lam)))
+        g = self.Xdot_fun(np.hstack((x,u,lam)))        
         
-        return A,B,G
+        return A,B,g
         
     def get_lam(self,x,u):
         # extract generalized velocity and vectorize it

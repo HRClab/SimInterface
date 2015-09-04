@@ -45,7 +45,7 @@ GU[4] = ALcT*(U[2]**2-U[0]**2)
 GU[5] = cQ*(-U[0]+U[1]-U[2]+U[3])
 
 # instantiation
-quad = nes.NewtonEulerSystems(X,U,GU,None,M)
+quad = nes.NewtonEulerSystems(M,X,U,GU)
 
 ######## Clear some variables ############
 # They were once symbols

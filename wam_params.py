@@ -1,7 +1,7 @@
 import numpy as np
 
 # Number of links
-Nlink = 2
+Nlink = 3
 
 # Currently, hard code the parameters. Later they will be symbolic.
 g = 10. # Setting really low because large jerks break constraints
