@@ -12,18 +12,13 @@ class pendulum(MDP.LagrangianSystem):
     A single Pendulum
     """
     def __init__(self):
-        m = 1.
-        g = 10.
-        fricCoef = 1.
+        m = 1., g = 10, fricCoef = 1.
         q, dq, u = sym.symbols('q dq u')
         x = np.array([q,dq])
         T = .5 * m * dq * dq
         V = m * g * sym.sin(q)
         fric = fricCoef * dq
         dt = 0.1
-        # Must start a bit away from equilibrium
-        # Otherwise some controllers, such as the artificial
-        # potential function, have problems
         x0 = np.array([0,0])
         cost = dt * (u*u + 100 * (1 - sym.sin(q)))
         MDP.LagrangianSystem.__init__(self,T,V,fric,cost,x,u,dt,x0)
