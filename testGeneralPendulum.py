@@ -112,12 +112,12 @@ Controllers = []
 
 # Controllers.append(ilqrCtrl)
 
-iLQR = ctrl.iterativeLQR(SYS=sysGenPend,
-                         Horizon=T,
-                         stoppingTolerance=1e-2,
-                         label='iLQR')
-
-Controllers.append(iLQR)
+#iLQR = ctrl.iterativeLQR(SYS=sysGenPend,
+#                         Horizon=T,
+#                         stoppingTolerance=1e-2,
+#                         label='iLQR')
+#
+#Controllers.append(iLQR)
 
 sampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
                                     Horizon=T,
@@ -128,24 +128,24 @@ sampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
                                     label='Sampling')
 Controllers.append(sampling)
 
-sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
-                               initialPolicy = sampling,
-                               Horizon = T,
-                               stoppingTolerance=1e-2,
-                               label='Sampling->iLQR')
+#sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
+#                               initialPolicy = sampling,
+#                               Horizon = T,
+#                               stoppingTolerance=1e-2,
+#                               label='Sampling->iLQR')
+#
+#Controllers.append(sampleIlqr)
 
-Controllers.append(sampleIlqr)
-
-iLqrSampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
-                                  initialPolicy=iLQR,
-                                  Horizon=T,
-                                  KLWeight=1e-4,
-                                  burnIn=2000,
-                                  ExplorationCovariance=10.*\
-                                  np.eye(sysGenPend.NumInputs),
-                                  label='iLQR->Sampling')
-
-Controllers.append(iLqrSampling)
+#iLqrSampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
+#                                  initialPolicy=iLQR,
+#                                  Horizon=T,
+#                                  KLWeight=1e-4,
+#                                  burnIn=2000,
+#                                  ExplorationCovariance=10.*\
+#                                  np.eye(sysGenPend.NumInputs),
+#                                  label='iLQR->Sampling')
+#
+#Controllers.append(iLqrSampling)
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'

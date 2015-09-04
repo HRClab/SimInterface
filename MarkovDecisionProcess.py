@@ -468,12 +468,20 @@ class inputAugmentedLagrangian(LagrangianSystem):
         return (A,B,g)
 
 class NewtonEulerSys(MarkovDecisionProcess, nes.NewtonEulerSystems):
-    def __init__(self,m,I,dt,x,u,Gu,cost,frix=None,Constraint=None):
+    def __init__(self,m,I,dt,x,u,Gu,cost,x0=None,frix=None,Constraint=None):
         # cost refers to cost at each step
         # cost should be a symbolic expression of x and u
+    
+        # Initialize parameters
         M = nes.build_M_matrix(m,I)
         self.dt = dt
-        
+        self.NumStates = len(x)
+        self.NumInputs = len(u)
+        if x0 is None:
+            self.x0 = np.zeros(self.NumStates)
+        else:
+            self.x0 = x0
+            
         # Compute cost and approximations 
         self.cost_fun = su.functify(cost,(x,u))
         z = np.hstack((x,u))
