@@ -9,7 +9,7 @@ import sympy_utils as su
 
 #### Define the pendulum on a cart system ####
 
-class pendulumCart(MDP.inputAugmentedLagrangian):
+class cartPole(MDP.inputAugmentedLagrangian):
     def __init__(self):
         dt = 0.05
         mPole = 1.
@@ -76,7 +76,7 @@ class pendulumCart(MDP.inputAugmentedLagrangian):
                                               cost=Cost,dt=dt,x0=x0)
                                      
 
-sysPendCart = pendulumCart()
+sysCartPole = cartPole()
 
 ##### Prepare the controllers ####
 
@@ -87,14 +87,14 @@ Controllers = []
 
 
 
-iLQR = ctrl.iterativeLQR(SYS=sysPendCart,
+iLQR = ctrl.iterativeLQR(SYS=sysCartPole,
                          Horizon=T,
                          stoppingTolerance=1e-2,
                          label='iLQR')
 
 Controllers.append(iLQR)
 
-sampling = ctrl.samplingOpenLoop(SYS=sysPendCart,
+sampling = ctrl.samplingOpenLoop(SYS=sysCartPole,
                                 KLWeight = 1e-5,
                                 burnIn = 100,
                                 ExplorationCovariance = 100,
@@ -103,7 +103,7 @@ sampling = ctrl.samplingOpenLoop(SYS=sysPendCart,
 
 Controllers.append(sampling)
 
-samplingIlqr = ctrl.iterativeLQR(SYS=sysPendCart,
+samplingIlqr = ctrl.iterativeLQR(SYS=sysCartPole,
                                  Horizon=T,
                                  stoppingTolerance=1e-2,
                                  initialPolicy=sampling,
@@ -111,7 +111,7 @@ samplingIlqr = ctrl.iterativeLQR(SYS=sysPendCart,
 
 Controllers.append(samplingIlqr)
 
-samplingIlqrSampling = ctrl.samplingOpenLoop(SYS=sysPendCart,
+samplingIlqrSampling = ctrl.samplingOpenLoop(SYS=sysCartPole,
                                             Horizon=T,
                                             KLWeight = 1e-5,
                                             burnIn = 100,
@@ -124,23 +124,23 @@ Controllers.append(samplingIlqrSampling)
 ##### Simulate all controllers on system #####
 print 'Simulating the system with different controllers'
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T,sysPendCart.NumStates))
-U = np.zeros((NumControllers,T,sysPendCart.NumInputs))
+X = np.zeros((NumControllers,T,sysCartPole.NumStates))
+U = np.zeros((NumControllers,T,sysCartPole.NumInputs))
 Cost = np.zeros(NumControllers)
 
-Time = sysPendCart.dt * np.arange(T)
+Time = sysCartPole.dt * np.arange(T)
 
 for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
-    X[k],U[k],Cost[k] = sysPendCart.simulatePolicy(controller)
+    X[k],U[k],Cost[k] = sysCartPole.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
 
 
 def movie():
     # draw the cart
-    h = .2*sysPendCart.lPole
-    w = .7*sysPendCart.lPole
+    h = .2*sysCartPole.lPole
+    w = .7*sysCartPole.lPole
     Cart = np.array([[-w/2,w/2,w/2,-w/2,-w/2],
                      [-h,   -h,  0,  0,  -h]])
     
@@ -151,9 +151,9 @@ def movie():
     lineCart = []
     lineTarget = []
 
-    halfWidth = 6*sysPendCart.lPole
-    yBottom = -1.2 * sysPendCart.lPole
-    yTop = 1.2 * sysPendCart.lPole
+    halfWidth = 6*sysCartPole.lPole
+    yBottom = -1.2 * sysCartPole.lPole
+    yTop = 1.2 * sysCartPole.lPole
     
     for k in range(NumControllers):
         ax = fig.add_subplot(4,1,k+1,autoscale_on=False,aspect=1,
@@ -171,11 +171,11 @@ def movie():
         for k in range(NumControllers):
             lineCart[k].set_data([],[])
             linePend[k].set_data([],[])
-            lineTarget[k].set_data(sysPendCart.target[0],sysPendCart.target[1])
+            lineTarget[k].set_data(sysCartPole.target[0],sysCartPole.target[1])
         return lineCart,linePend,lineTarget
     def animate(k):
         for j in range(NumControllers):
-            pos = sysPendCart.pos_fun(X[j][k])
+            pos = sysCartPole.pos_fun(X[j][k])
             posCart = pos[0]
             posPend = pos[1]
             lineCart[j].set_data(posCart[0]+Cart[0],
@@ -188,7 +188,7 @@ def movie():
 
     ani = animation.FuncAnimation(fig,animate,T,
                                   blit=False,init_func=init,
-                                  interval=sysPendCart.dt*1000,
+                                  interval=sysCartPole.dt*1000,
                                   repeat=False)
 
     return ani
