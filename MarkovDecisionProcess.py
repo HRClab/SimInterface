@@ -5,7 +5,7 @@
 import numpy as np
 from numpy.random import randn
 import pylagrange as lag
-import NewtonEulerSystem as nes
+import NewtonEuler as ne
 from scipy.linalg import eigh, eig
 import sympy as sym
 import sympy_utils as su
@@ -467,13 +467,13 @@ class inputAugmentedLagrangian(LagrangianSystem):
         
         return (A,B,g)
 
-class NewtonEulerSys(MarkovDecisionProcess, nes.NewtonEulerSystems):
+class NewtonEulerSys(MarkovDecisionProcess, ne.NewtonEuler):
     def __init__(self,m,I,dt,x,u,Gu,cost,x0=None,frix=None,Constraint=None):
         # cost refers to cost at each step
         # cost should be a symbolic expression of x and u
     
         # Initialize parameters
-        M = nes.build_M_matrix(m,I)
+        M = ne.build_M_matrix(m,I)
         self.dt = dt
         self.NumStates = len(x)
         self.NumInputs = len(u)
@@ -503,7 +503,7 @@ class NewtonEulerSys(MarkovDecisionProcess, nes.NewtonEulerSystems):
 
         self.costMat_fun = su.functify(CostMat,(x,u))        
         
-        nes.NewtonEulerSystems.__init__(self,M,x,u,Gu,frix,Constraint)
+        ne.NewtonEuler.__init__(self,M,x,u,Gu,frix,Constraint)
        
     def step(self,x,u,k):
         return x+self.state_diff(x,u,self.dt)

@@ -95,7 +95,7 @@ def states_extractor(x):
     return P,V,Pos,Quat,Vel,Omega
 
 #### class definition
-class NewtonEulerSystems():
+class NewtonEuler():
     def __init__(self,M,x,u,Gu,frix=None,Constraint=None):
         # x should be 13*self.NumBody by 1 symbol array
         # self.NumBody is the number of rigid bodies

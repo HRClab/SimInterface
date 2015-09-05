@@ -8,8 +8,8 @@ setup(name='pyopticon',
       author=['Andy Lamperski','Bolei Di'],
       author_email=['alampers@umn.edu','dixxx047@umn.edu'],
       py_modules=['Controller','MarkovDecisionProcess'],
-      dependency_links = ['https://github.com/gutomaia/pyNES/tarball/master#egg=pyNES-0.0.2'],
-      install_requires=['pyNES','numpy','sympy','dill','sympy_utils','pyuquat', \
+#      dependency_links = ['https://github.com/gutomaia/pyNES/tarball/master#egg=pyNES-0.0.2'],
+      install_requires=['numpy','sympy','dill','sympy_utils','pyuquat', \
                         'pylagrange','pynes','scipy','bovy_mcmc'],
       )
       
