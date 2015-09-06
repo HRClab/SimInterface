@@ -10,3 +10,4 @@ slice sampling.
 https://github.com/jobovy/bovy_mcmc
 * pylagrange https://github.umn.edu/HRCLab/pylagrange
 * sympy_utils https://github.umn.edu/HRCLab/sympy_utils
+* pyuquat https://github.umn.edu/HRCLab/pyuquat
