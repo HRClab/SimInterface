@@ -7,7 +7,7 @@ setup(name='pyopticon',
       author=['Andy Lamperski','Bolei Di'],
       author_email=['alampers@umn.edu','dixxx047@umn.edu'],
       py_modules=['Controller','MarkovDecisionProcess'],
-      install_requires=['numpy','sympy','dill','sympy_utils','pyuquat', \
+      install_requires=['numpy','sympy','dill','sympy_utils','uquat', \
                         'pylagrange','scipy','bovy_mcmc'],
       )
       
