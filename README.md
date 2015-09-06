@@ -1,7 +1,6 @@
-# sampling-for-optctrl
+# PyOptiCon
 
-Experimental code for the combination of optimal control methods with
-slice sampling.
+Code for rapidly developing simulations and control schemes
 
 # Dependencies
 
