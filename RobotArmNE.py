@@ -6,8 +6,6 @@ import sympy_utils as su
 import pyuquat as uq
 import sympy as sym
 import numpy as np
-import Controller as ctrl
-from wam_movie import wam_movie
 
 class RobotArmNE(MDP.NewtonEulerSys):
     # This class creates robot arms similar to the Barret Wam arm
@@ -30,6 +28,11 @@ class RobotArmNE(MDP.NewtonEulerSys):
         self.xstride = 13
         self.pstride = 7
         self.vstride = 6
+        # Link positions
+        self.zJ = np.zeros((self.Nlink,3))
+        for k in range(self.Nlink):
+            self.zJ[k] = np.array([0,0,h[k]/2.])
+        self.build_theta_x_funcs()     
         
         #### Generate input, constraint, cost and initial states
         #### These are the difference between an arm and a general ne
@@ -73,11 +76,7 @@ class RobotArmNE(MDP.NewtonEulerSys):
         Ffric = - np.dot(TG,fric_Nlink)
         
         ## Generate constraints functions
-        # Link positions
-        self.zJ = np.zeros((self.Nlink,3))
-        for k in range(self.Nlink):
-            self.zJ[k] = np.array([0,0,h[k]/2.])
-            
+               
         # Generate position constraints
         ConstraintPos = np.zeros(3*self.Nlink,dtype=object)
         
@@ -119,7 +118,7 @@ class RobotArmNE(MDP.NewtonEulerSys):
             tip_target = cost_par            
             tip_error = tip - tip_target
             target_cost = np.dot(tip_error,tip_error)
-            energy_cost = 0.001*np.dot(U,U)
+            energy_cost = 0.0*np.dot(U,U)
             cost = target_cost + energy_cost
         elif cost_type == 'JointTarget':
             cost = 1
@@ -134,12 +133,66 @@ class RobotArmNE(MDP.NewtonEulerSys):
         x0 = self.PV2X(P0,V0)
         
         MDP.NewtonEulerSys.__init__(self,m,I,dt,X,U,GU,cost,x0,Ffric,Constraint)
-    
+        
+        
+    def build_theta_x_funcs(self):
+        # Build some useful arm functions
+        # Mainly related to conversion between joint angles and states        
+        theta = sym.symarray('theta',Nlink)
+        theta_dot = sym.symarray('theta_dot',Nlink)
+        
+        # re-initialize the quaternions
+        Quat = np.zeros((Nlink,4),dtype=object)
+        Pos = np.zeros((Nlink,3),dtype=object)
+        Omega = np.zeros((Nlink,3),dtype=object)
+        Vel = np.zeros((Nlink,3),dtype=object)
+        H_link = np.zeros((Nlink),dtype=object) # heights of all links
+        
+        for l in range(Nlink):
+            QuatRel = np.zeros(4,dtype=object)
+            QuatRel[0] = sym.cos(theta[l]/2.)
+            QOther = sym.sin(theta[l]/2.)
+            OmegaRel = np.zeros(3,dtype=object)
+            if (l%2) == 0:
+                QuatRel[3] = QOther
+                OmegaRel[2] = theta_dot[l]
+            else:
+                QuatRel[2] = QOther
+                OmegaRel[1] = theta_dot[l]
+        
+            if l==0:
+                Pos[l] = self.zJ[l]
+                Quat[l] = QuatRel
+                Omega[l] = OmegaRel
+            else:
+                Rrel = su.simplify(uq.mat(QuatRel))
+        
+                # Forward kinematics
+                Quat[l] = uq.mult(Quat[l-1],QuatRel)
+                Pos[l] = Pos[l-1] + uq.rot(Quat[l-1],self.zJ[l-1]) + \
+                         uq.rot(Quat[l],self.zJ[l])
+        
+                # Jacobian
+                Omega[l] = OmegaRel + np.dot(Rrel.T,Omega[l-1])
+                Vel[l] = np.cross(Omega[l],self.zJ[l]) \
+                         + np.dot(Rrel.T,Vel[l-1]) \
+                         + np.dot(Rrel.T,np.cross(Omega[l-1],self.zJ[l-1]))
+            
+            # extract heights of the links
+            H_link[l] = Pos[l][2]
+            
+            H_link_theta_Jac = su.jacobian(H_link,theta)
+            self.H_link_theta_Jac_fun = su.functify(H_link_theta_Jac,theta)
+                
+            P = np.hstack((Pos,Quat))
+            P_vec = np.reshape(P,self.pstride*Nlink)
+            self.kinematics_fun = su.functify(P_vec,theta)
+                                
     def ArmTip(self,P):
         return self.tip_fun(P)
     
     def theta2P(self,theta):
-        # Converts joint angles to 
+        # Convert joint angles to states
         P = np.zeros((self.Nlink,self.pstride))
         Pos = np.zeros((self.Nlink,3))
         Quat = np.zeros((self.Nlink,4))
@@ -157,7 +210,7 @@ class RobotArmNE(MDP.NewtonEulerSys):
         for l in range(self.Nlink):
             P[l] = np.hstack((Pos[l],Quat[l]))
         return P
-        
+    
     def P2theta(self,P):
         pass
     
@@ -170,6 +223,25 @@ class RobotArmNE(MDP.NewtonEulerSys):
             X[l*self.xstride+self.pstride:(l+1)*self.xstride] = V[l]
         return X
     
+    def joint_angles(self,x):
+        theta = np.zeros(Nlink)
+        for l in range(Nlink):
+            Quat = x[3 + l*self.xstride: 7 + l*self.xstride]
+    
+            if l == 0:
+                QuatRel = Quat
+            else:
+                QuatLast = x[3+(l-1)*self.xstride:7+(l-1)*self.xstride]
+                QuatRel = uq.mult(uq.inv(QuatLast),Quat)
+    
+            cTheta = QuatRel[0]
+            if (l % 2) == 1:
+                sTheta = QuatRel[2]
+            elif (l % 2) == 0:
+                sTheta = QuatRel[3]
+            theta[l] = 2*np.arctan2(sTheta,cTheta)
+        return theta
+    
     def PQVO2PQ(self,Pos,Quad,Vel,Omega):
         pass
     
@@ -179,6 +251,15 @@ class RobotArmNE(MDP.NewtonEulerSys):
     def TipJointJac(self,P):
         pass
     
+    def equil_input(self,x):
+        ## extract P_vec from x
+        P,V,Pos,Quat,Vel,Omega = ne.states_extractor(x)    
+        
+        ## input
+        Fgrav_Nlink = self.Fgrav_NumBody.fun(P)
+        u_eq = np.dot(self.H_link_theta_Jac_fun(self.joint_angles(x)).T,Fgrav_Nlink)
+        return u_eq
+    
     def moive(self,X):
         pass
 
@@ -187,7 +268,7 @@ Nlink = 3
 m = np.ones(Nlink)
 I = 0.1*np.ones(3*Nlink)
 h = np.array([0.7,0.5,1.8,1.8,.4,.6,.4])
-tip_target = np.array([0,1,0.2])
+tip_target = np.array([0,2.3,0])
 
 mini_wam = RobotArmNE(m,I,h,
                       theta0=np.zeros(Nlink),

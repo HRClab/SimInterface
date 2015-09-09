@@ -160,7 +160,8 @@ class NewtonEuler():
         ConstraintMat = np.dot(su.jacobian(Constraint,P_vec),Pdot_V_Jac)
         ConstraintTen = su.jacobian(ConstraintMat,P_vec)
         ConstraintMatDot = np.dot(ConstraintTen,Pdot)
-    
+        lamMat = np.dot(ConstraintMat,np.dot(self.Minv,ConstraintMat.T))
+        
         # Convert symbolic expressions to callable numerical functions
         self.Constraint_fun = su.functify(Constraint,x)  # vector of all equality constraints
         self.Constraint_x_Jac_fun = su.functify(Constraint_x_Jac,x) # Jacobian of constraints w.r.t. x
@@ -193,14 +194,19 @@ class NewtonEuler():
         
         ## Gravitational force
         g = 10.0
+        Fgrav_NumBody = np.zeros(self.NumBody,dtype=object)
         Fgrav = np.zeros((self.NumBody*self.vstride),dtype=object)
         for l in range(self.NumBody):
+            Fgrav_NumBody[l] = self.m[l]*g            
             Fgrav[l*self.vstride:l*self.vstride+3] = uq.rot(uq.inv(Quat[l]),self.m[l]*g*np.array([0,0,-1]))
+        self.Fgrav_NumBody_fun = su.functify(Fgrav_NumBody,P)
         self.Fgrav_fun = su.functify(Fgrav,P)        
         
+        ## External wrench
+        Wrench_ext = Gu + Fgrav + frix        
+        
         ## Compute Vdot, take jacobians
-        Vdot = np.dot(self.Minv,(Gu + Fgrav + frix + \
-                                 np.dot(ConstraintMat.T,lam) - CV))
+        Vdot = np.dot(self.Minv,(Wrench_ext + np.dot(ConstraintMat.T,lam) - CV))
         Xdot = np.zeros(self.NumBody*self.xstride,dtype = object)
         for l in range(self.NumBody):
             Xdot[l*self.xstride:l*self.xstride + self.pstride] = \
@@ -212,10 +218,23 @@ class NewtonEuler():
         linearized_model_B = su.jacobian(Xdot,u)
         linearized_model_G = su.jacobian(Xdot,lam)
         
-        self.Xdot_fun = su.functify(Xdot,np.hstack((x,u,lam)))
-        self.linearized_model_A_fun = su.functify(linearized_model_A,np.hstack((x,u,lam)))
-        self.linearized_model_B_fun = su.functify(linearized_model_B,np.hstack((x,u,lam)))
-        self.linearized_model_G_fun = su.functify(linearized_model_G,np.hstack((x,u,lam)))
+        z = np.hstack((x,u,lam))
+        
+        self.Xdot_fun = su.functify(Xdot,z)
+        self.linearized_model_A_fun = su.functify(linearized_model_A,z)
+        self.linearized_model_B_fun = su.functify(linearized_model_B,z)
+        self.linearized_model_G_fun = su.functify(linearized_model_G,z)
+        
+        # To compute the linear model without G, 
+        # we need the symbolic ConstraintDDot
+        ConstraintDDot = np.dot(lamMat,lam) + np.dot(ConstraintMatDot,V_vec) + \
+                         np.dot(np.dot(ConstraintMat,self.Minv), Wrench_ext-CV)
+        ConstraintDDot_x_Jac = su.jacobian(ConstraintDDot,x)
+        ConstraintDDot_u_Jac = su.jacobian(ConstraintDDot,u)
+        self.lamMat_fun = su.functify(lamMat,z)
+        self.ConstraintDDot_x_Jac_fun = su.functify(ConstraintDDot_x_Jac,z)
+        self.ConstraintDDot_u_Jac_fun = su.functify(ConstraintDDot_u_Jac,z)
+        
         
     #### Computes derivative of generalized velocity for a single rigid body
     def V_dot_NE(self,V,W,m,I): # V is generalized velocity
@@ -309,14 +328,23 @@ class NewtonEuler():
     def linearization(self,x,u):
         """
         xdot approx= A(x-xNom) + B(u-uNom) + G(lam - lamNom) + g
+        0 = D(x-xNom) + H(u-uNom) + L(lam - lamNom)
         """
         lam = self.get_lam(x,u)
-        A = self.linearized_model_A_fun(np.hstack((x,u,lam)))
-        B = self.linearized_model_B_fun(np.hstack((x,u,lam)))
-        G = self.linearized_model_G_fun(np.hstack((x,u,lam)))
-        g = self.Xdot_fun(np.hstack((x,u,lam)))        
+        z = np.hstack((x,u,lam))
+        A = self.linearized_model_A_fun(z)
+        B = self.linearized_model_B_fun(z)
+        G = self.linearized_model_G_fun(z)
+        g = self.Xdot_fun(z)        
+        D = self.ConstraintDDot_x_Jac_fun(z)
+        H = self.ConstraintDDot_u_Jac_fun(z)
+        L = self.lamMat_fun(z)
+        Linv = np.invert(L)
         
-        return A,B,g
+        lin_A = A - np.dot(G,np.dot(Linv,D))        
+        lin_B = B - np.dot(G,np.dot(Linv,H))
+        
+        return lin_A,lin_B,g
         
     def get_lam(self,x,u):
         # extract generalized velocity and vectorize it
