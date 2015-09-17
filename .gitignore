@@ -1,0 +1,10 @@
+Unix Generated files
+*~
+
+# Generated Python Files and folders
+*.pyc
+build/
+dist/
+*.egg-info
+
+
