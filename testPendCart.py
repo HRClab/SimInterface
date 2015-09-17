@@ -1,5 +1,4 @@
-import MarkovDecisionProcess as MDP
-import Controller as ctrl
+import pyopticon as POC
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -9,7 +8,7 @@ import sympy_utils as su
 
 #### Define the pendulum on a cart system ####
 
-class cartPole(MDP.inputAugmentedLagrangian):
+class cartPole(POC.inputAugmentedLagrangian):
     def __init__(self):
         dt = 0.05
         mPole = 1.
@@ -68,7 +67,7 @@ class cartPole(MDP.inputAugmentedLagrangian):
         self.pos_fun = su.functify(pos,x)
 
         # Now initialize all the other bits
-        MDP.inputAugmentedLagrangian.__init__(self,
+        POC.inputAugmentedLagrangian.__init__(self,
                                               inputFunc=inputFunc,
                                               u=u,
                                               x=x,
@@ -87,14 +86,14 @@ Controllers = []
 
 
 
-iLQR = ctrl.iterativeLQR(SYS=sysCartPole,
+iLQR = POC.iterativeLQR(SYS=sysCartPole,
                          Horizon=T,
                          stoppingTolerance=1e-2,
                          label='iLQR')
 
 Controllers.append(iLQR)
 
-sampling = ctrl.samplingOpenLoop(SYS=sysCartPole,
+sampling = POC.samplingOpenLoop(SYS=sysCartPole,
                                 KLWeight = 1e-5,
                                 burnIn = 100,
                                 ExplorationCovariance = 100,
@@ -103,7 +102,7 @@ sampling = ctrl.samplingOpenLoop(SYS=sysCartPole,
 
 Controllers.append(sampling)
 
-samplingIlqr = ctrl.iterativeLQR(SYS=sysCartPole,
+samplingIlqr = POC.iterativeLQR(SYS=sysCartPole,
                                  Horizon=T,
                                  stoppingTolerance=1e-2,
                                  initialPolicy=sampling,
@@ -111,7 +110,7 @@ samplingIlqr = ctrl.iterativeLQR(SYS=sysCartPole,
 
 Controllers.append(samplingIlqr)
 
-samplingIlqrSampling = ctrl.samplingOpenLoop(SYS=sysCartPole,
+samplingIlqrSampling = POC.samplingOpenLoop(SYS=sysCartPole,
                                             Horizon=T,
                                             KLWeight = 1e-5,
                                             burnIn = 100,
