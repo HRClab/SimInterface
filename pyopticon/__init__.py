@@ -4,18 +4,19 @@ from MarkovDecisionProcess import MarkovDecisionProcess
 from MarkovDecisionProcess import differentialEquation
 from MarkovDecisionProcess import driftDiffusion
 from MarkovDecisionProcess import deterministicSubsystem
-from MarkovDecisionProcess import LagrangianSystem
-from MarkovDecisionProcess import inputAugmentedLagrangian
 from MarkovDecisionProcess import NewtonEulerSys
 
 # Import Linear Quadratic Systems
 from linearQuadraticSystem import linearQuadraticSystem
 from linearQuadraticSystem import linearQuadraticStochasticSystem
 
-
-# Import Helper Functions
+# Import Linear Quadratic Helper Functions
 from linearQuadraticSystem import buildDynamicsMatrix
 from linearQuadraticSystem import buildCostMatrix
+
+# Import Lagrangian Systems
+from LagrangianSystem import LagrangianSystem
+from LagrangianSystem import inputAugmentedLagrangian
 
 from Controller import openLoopPolicy
 from Controller import flatOpenLoopPolicy

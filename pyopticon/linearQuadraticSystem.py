@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.random import randn
+from scipy.linalg import eigh
 import numpy_utils as nu
 import MarkovDecisionProcess as MDP
 
@@ -82,6 +83,7 @@ def buildCostMatrix(Cxx=0,Cuu=0,C11=0,Cxu=0,Cx1=0,Cu1=0):
     return C
 
 
+#### Basic LQ Systems ######
 class linearQuadraticSystem(MDP.MarkovDecisionProcess):
     """
     A discrete-time linear dynamical system with a quadratic cost.
