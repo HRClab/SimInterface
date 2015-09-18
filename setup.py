@@ -6,8 +6,8 @@ setup(name='pyopticon',
       description='Simulation package of optimal control problems',
       author=['Andy Lamperski','Bolei Di'],
       author_email=['alampers@umn.edu','dixxx047@umn.edu'],
-      py_modules=['Controller','MarkovDecisionProcess'],
-      install_requires=['numpy','sympy','dill','sympy_utils','uquat', \
+      packages = ['pyopticon'],
+      install_requires=['numpy','sympy','dill','scipy_utils','uquat', \
                         'pylagrange','scipy','bovy_mcmc'],
       )
       
