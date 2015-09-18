@@ -1,5 +1,4 @@
-import MarkovDecisionProcess as MDP
-import Controller as ctrl
+import pyopticon as POC
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -9,7 +8,7 @@ import sympy_utils as su
 #### Define the system ####
 
 
-class pendulum(MDP.LagrangianSystem):
+class pendulum(POC.LagrangianSystem):
     """
     A planar pendulum with an arbitrary number of links
     """
@@ -75,7 +74,7 @@ class pendulum(MDP.LagrangianSystem):
         # Position Function for Plotting
         self.pos_fun = su.functify(pos,x)
         
-        MDP.LagrangianSystem.__init__(self,T,V,fric,Cost,x,u,dt,x0)
+        POC.LagrangianSystem.__init__(self,T,V,fric,Cost,x,u,dt,x0)
 
 
 if not 'sysGenPend' in locals():
@@ -104,22 +103,8 @@ print 'Initializing the Controllers'
 T = 100
 Controllers = []
 
-# ilqrCtrl = ctrl.iterativeLQR(SYS=sysGenPend,
-#                              initialPolicy=None,
-#                              Horizon=T,
-#                              regularizationWeight=100,
-#                              label='iLQR')
 
-# Controllers.append(ilqrCtrl)
-
-#iLQR = ctrl.iterativeLQR(SYS=sysGenPend,
-#                         Horizon=T,
-#                         stoppingTolerance=1e-2,
-#                         label='iLQR')
-#
-#Controllers.append(iLQR)
-
-sampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
+sampling = POC.samplingOpenLoop(SYS=sysGenPend,
                                     Horizon=T,
                                     KLWeight=1e-4,
                                     burnIn=2000,
@@ -128,24 +113,6 @@ sampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
                                     label='Sampling')
 Controllers.append(sampling)
 
-#sampleIlqr = ctrl.iterativeLQR(SYS=sysGenPend,
-#                               initialPolicy = sampling,
-#                               Horizon = T,
-#                               stoppingTolerance=1e-2,
-#                               label='Sampling->iLQR')
-#
-#Controllers.append(sampleIlqr)
-
-#iLqrSampling = ctrl.samplingOpenLoop(SYS=sysGenPend,
-#                                  initialPolicy=iLQR,
-#                                  Horizon=T,
-#                                  KLWeight=1e-4,
-#                                  burnIn=2000,
-#                                  ExplorationCovariance=10.*\
-#                                  np.eye(sysGenPend.NumInputs),
-#                                  label='iLQR->Sampling')
-#
-#Controllers.append(iLqrSampling)
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'

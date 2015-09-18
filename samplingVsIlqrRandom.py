@@ -1,5 +1,4 @@
-import MarkovDecisionProcess as MDP
-import Controller as ctrl
+import pyopticon as POC
 import numpy as np
 from numpy.random import randn
 import matplotlib.pyplot as plt
@@ -13,7 +12,7 @@ mpl.rcParams.update({'font.size':22})
 
 #### Define the pendulum on a cart system ####
 
-class pendulumCart(MDP.inputAugmentedLagrangian):
+class pendulumCart(POC.inputAugmentedLagrangian):
     def __init__(self):
         dt = 0.05
         mPole = 1.
@@ -73,7 +72,7 @@ class pendulumCart(MDP.inputAugmentedLagrangian):
         self.pos_fun = su.functify(pos,x)
 
         # Now initialize all the other bits
-        MDP.inputAugmentedLagrangian.__init__(self,
+        POC.inputAugmentedLagrangian.__init__(self,
                                               inputFunc=inputFunc,
                                               u=u,
                                               x=x,
@@ -100,7 +99,7 @@ samplingCosts = np.zeros((NumTrials,NumIter+1))
 
 for trial in range(NumTrials):
     sysPendCart.randomizeInput()
-    iLQR = ctrl.iterativeLQR(SYS=sysPendCart,
+    iLQR = POC.iterativeLQR(SYS=sysPendCart,
                          Horizon=T,
                          maxIter=NumIter,
                          label='iLQR')
@@ -113,7 +112,7 @@ for trial in range(NumTrials):
     
     iLQRCosts[trial] = iLQRcost
 
-    sampling = ctrl.samplingOpenLoop(SYS=sysPendCart,
+    sampling = POC.samplingOpenLoop(SYS=sysPendCart,
                                      KLWeight = 1e-5,
                                      burnIn = NumIter,
                                      ExplorationCovariance = 100,
