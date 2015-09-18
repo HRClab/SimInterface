@@ -1,4 +1,4 @@
-import MarkovDecisionProcess as MDP
+import linearQuadraticSystem as LQS
 import numpy as np
 from numpy.random import randn
 from scipy.linalg import solve, cholesky, block_diag, eigh, eig
@@ -212,7 +212,7 @@ class iterativeLQR(varyingAffine):
                 print 'regularization parameter too large'
                 break
 
-            correctionSys = MDP.buildCorrectionSystem(SYS,X,U)
+            correctionSys = LQS.buildCorrectionSystem(SYS,X,U)
 
             
             for k in range(self.Horizon):
@@ -275,9 +275,9 @@ class iterativeLQR(varyingAffine):
     
 class approximateLQR(linearQuadraticRegulator):
     def __init__(self,SYS,x,u,k=0,*args,**kwargs):
-        dynMat,costMat = MDP.convexApproximationMatrices(SYS,x,u,k)
+        dynMat,costMat = LQS.convexApproximationMatrices(SYS,x,u,k)
             
-        approxSYS = MDP.linearQuadraticSystem(dynMat,costMat,x0=x)
+        approxSYS = LQS.linearQuadraticSystem(dynMat,costMat,x0=x)
         linearQuadraticRegulator.__init__(self,SYS=approxSYS,*args,**kwargs)
 
 
