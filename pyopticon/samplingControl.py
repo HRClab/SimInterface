@@ -4,6 +4,18 @@ from numpy.random import randn
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
 import Controller as ctrl
 
+#### Basic Helper Functions
+
+def initializeFlatOpenLoop(SYS, initialPolicy, Horizon=1):
+    if initialPolicy is None:
+        U = np.zeros(Horizon * SYS.NumInputs)
+    else:
+        UFull = SYS.simulatePolicy(initialPolicy)[1]
+        U = UFull[:Horizon].flatten()
+
+    return U
+
+
 #### Slice Sampling Optimizer ####
 
 def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
@@ -111,12 +123,9 @@ class samplingOpenLoop(ctrl.flatOpenLoopPolicy):
 
         lenW = self.priorChol.shape[0]
 
-        if initialPolicy is None:
-            self.U = np.zeros(lenW)
-        else:
-            UFull = SYS.simulatePolicy(initialPolicy)[1]
-            self.U = UFull[:self.Horizon].flatten()
-            # self.U = SYS.simulatePolicy(initialPolicy)[1].flatten()
+
+        self.U = initializeFlatOpenLoop(SYS, initialPolicy, self.Horizon)
+
 
         self.burnIn = burnIn
         self.updatePolicy()
@@ -217,3 +226,16 @@ class samplingMPC(ctrl.Controller):
         self.predictiveController.SYS.x0 = self.x0
 
         return u
+
+class gibbsOpenLoop(ctrl.flatOpenLoopPolicy):
+    def __init__(self,
+                 SYS = None,
+                 KLWeight=1,
+                 burnIn=0,
+                 InputCovariance=1.,
+                 StateCovariance=1.,
+                 initialPolicy = None,
+                 displayFun = sliceOptimizationDisplay,
+                 *args, **kwargs):
+
+        pass
