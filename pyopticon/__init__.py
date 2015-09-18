@@ -26,10 +26,11 @@ from Controller import staticGain
 from Controller import varyingAffine
 from Controller import flatVaryingAffine
 from Controller import staticFunction
-from Controller import linearQuadraticRegulator
-from Controller import modelPredictiveControl
-from Controller import iterativeLQR
-from Controller import approximateLQR
 from Controller import samplingOpenLoop
 from Controller import samplingStochasticAffine
 from Controller import samplingMPC
+
+from linearQuadraticControl import linearQuadraticRegulator
+from linearQuadraticControl import modelPredictiveControl
+from linearQuadraticControl import iterativeLQR
+from linearQuadraticControl import approximateLQR
