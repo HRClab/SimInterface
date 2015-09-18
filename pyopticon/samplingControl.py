@@ -121,8 +121,6 @@ class samplingOpenLoop(ctrl.flatOpenLoopPolicy):
         self.priorChol = trajectoryNoiseMatrix(ExplorationCovariance,
                                                self.Horizon)
 
-        lenW = self.priorChol.shape[0]
-
 
         self.U = initializeFlatOpenLoop(SYS, initialPolicy, self.Horizon)
 
