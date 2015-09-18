@@ -1,5 +1,4 @@
-import MarkovDecisionProcess as MDP
-import Controller as ctrl
+import pyopticon as POC
 import numpy as np
 from numpy.random import randn
 import matplotlib.pyplot as plt
@@ -14,15 +13,15 @@ def buildSystems():
         R = dt * 1.
         W = np.sqrt(dt) * .1
         noiseMat = np.array([[W]])
-        dynMat = MDP.buildDynamicsMatrix(A,B)
-        costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
+        dynMat = POC.buildDynamicsMatrix(A,B)
+        costMat = POC.buildCostMatrix(Cxx=Q,Cuu=R)
 
-        sys = MDP.linearQuadraticStochasticSystem(dynMat,
+        sys = POC.linearQuadraticStochasticSystem(dynMat,
                                                   costMat,
                                                   noiseMat,
                                                   x0=x0)
 
-        sysDet = MDP.linearQuadraticSystem(dynMat,
+        sysDet = POC.linearQuadraticSystem(dynMat,
                                            costMat,
                                            x0=x0)
 
@@ -34,19 +33,19 @@ T = 100
 
 Controllers = []
 
-staticCtrl = ctrl.staticGain(gain=-.5,Horizon=T,label='Static')
+staticCtrl = POC.staticGain(gain=-.5,Horizon=T,label='Static')
 Controllers.append(staticCtrl)
 
-lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
+lqrCtrl = POC.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-deterministicSampling = ctrl.samplingOpenLoop(SYS=sysDet,
+deterministicSampling = POC.samplingOpenLoop(SYS=sysDet,
                                               Horizon=T,
                                               KLWeight=1e-4,
                                               burnIn=100,
                                               ExplorationCovariance=3)
 
-sampleMPCctrl = ctrl.samplingMPC(SYS=sysDet,
+sampleMPCctrl = POC.samplingMPC(SYS=sysDet,
                                  Horizon=T,
                                  KLWeight=1e-4,
                                  ExplorationCovariance=3.,
@@ -56,14 +55,6 @@ sampleMPCctrl = ctrl.samplingMPC(SYS=sysDet,
                                  label='Sampling MPC')
 
 Controllers.append(sampleMPCctrl)
-# samplingCtrl = ctrl.samplingStochasticAffine(SYS=sys,
-#                                              NumSamples = 10,
-#                                              Horizon=T,
-#                                              KLWeight=1e-4,burnIn=100,
-#                                              ExplorationCovariance=1.*np.eye(2),
-#                                              label='Sampling')
-
-# Controllers.append(samplingCtrl)
 
 NumControllers = len(Controllers)
 XMean = np.zeros((NumControllers,T,1))
@@ -105,7 +96,7 @@ print '\nTesting Mean Cost Predictions\n'
 # Testing 
 gain = randn(T*2)
 
-randomPolicy = ctrl.flatVaryingAffine(gain,1,T,label='Random')
+randomPolicy = POC.flatVaryingAffine(gain,1,T,label='Random')
 
 
 cost = sys.simulatePolicy(randomPolicy)[2]

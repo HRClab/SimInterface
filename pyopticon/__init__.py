@@ -10,6 +10,10 @@ from MarkovDecisionProcess import LagrangianSystem
 from MarkovDecisionProcess import inputAugmentedLagrangian
 from MarkovDecisionProcess import NewtonEulerSys
 
+# Import Helper Functions
+from MarkovDecisionProcess import buildDynamicsMatrix
+from MarkovDecisionProcess import buildCostMatrix
+
 from Controller import openLoopPolicy
 from Controller import flatOpenLoopPolicy
 from Controller import staticGain
