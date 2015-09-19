@@ -1,20 +1,16 @@
 import numpy as np
-from scipy.linalg import cholesky
+from scipy.linalg import cholesky, inv
 from numpy.random import randn
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
 import Controller as ctrl
 
 #### Basic Helper Functions
 
-def initializeFlatOpenLoop(SYS, initialPolicy, Horizon=1):
+def initializeOpenLoop(SYS, initialPolicy, Horizon=1):
     if initialPolicy is None:
-        U = np.zeros(Horizon * SYS.NumInputs)
-    else:
-        UFull = SYS.simulatePolicy(initialPolicy)[1]
-        U = UFull[:Horizon].flatten()
+        initialPolicy = ctrl.Controller(Horizon,SYS.NumInputs)
 
-    return U
-
+    return SYS.simulatePolicy(initialPolicy)
 
 #### Slice Sampling Optimizer ####
 
@@ -70,7 +66,12 @@ def sliceSample(sampleObj,X,burnIn=1,resetObject=False):
     return X, bestX, likSequence
 
 
-
+def vectorNoiseMatrix(Cov,vecLength):
+    if isinstance(Cov,np.ndarray):
+        NoiseGain = cholesky(Cov,lower=True)
+    else:
+        NoiseGain = np.sqrt(Cov) * np.eye(vecLength)
+    return NoiseGain
 
 def trajectoryNoiseMatrix(Cov,Horizon):
     if isinstance(Cov,np.ndarray):
@@ -97,6 +98,15 @@ def sliceOptimizationDisplay(logLik,bestLik,samp,burnIn,KLWeight):
 def nullDisplay(logLik,bestLik,samp,burnIn,KLWeight):
     pass
 
+class basicSampleObject(object):
+    """
+    Create a sampling object from a log likelihood and prior cholesky
+    """
+    def __init__(self,logLikFun,priorChol,displayFun=nullDisplay):
+        self.loglikelihood = logLikFun
+        self.priorChol = priorChol
+        self.displaySampleInfo = nullDisplay
+
 #### Slice Sampling Controllers ####
 
 
@@ -122,8 +132,8 @@ class samplingOpenLoop(ctrl.flatOpenLoopPolicy):
                                                self.Horizon)
 
 
-        self.U = initializeFlatOpenLoop(SYS, initialPolicy, self.Horizon)
-
+        Ufull = initializeOpenLoop(SYS, initialPolicy, self.Horizon)[1]
+        self.U = Ufull.flatten()
 
         self.burnIn = burnIn
         self.updatePolicy()
@@ -225,7 +235,14 @@ class samplingMPC(ctrl.Controller):
 
         return u
 
-class gibbsOpenLoop(ctrl.flatOpenLoopPolicy):
+class gibbsOpenLoop(ctrl.openLoopPolicy):
+    """
+    This is a method for computing open-loop policies by Gibbs sampling
+
+    It runs backwards alternating between input and state samples.
+    
+    Currently, it only applies to deterministic time-invariant systems. 
+    """
     def __init__(self,
                  SYS = None,
                  KLWeight=1,
@@ -234,6 +251,94 @@ class gibbsOpenLoop(ctrl.flatOpenLoopPolicy):
                  StateCovariance=1.,
                  initialPolicy = None,
                  displayFun = sliceOptimizationDisplay,
+                 Horizon=1,
                  *args, **kwargs):
+        
+        NumInputs = SYS.NumInputs
 
-        pass
+        self.X,U = initializeOpenLoop(SYS,initialPolicy,Horizon)[:2]
+
+        ctrl.openLoopPolicy.__init__(self,
+                                     U=U,
+                                     *args,**kwargs)
+                                         
+        # Cholesky factorize the covariances
+        CholU = vectorNoiseMatrix(InputCovariance,SYS.NumInputs)
+        CholW = vectorNoiseMatrix(StateCovariance,SYS.NumStates)
+
+        # Store their inverses.
+        invCholU = inv(CholU)
+        invCholW = inv(CholW)
+        
+        # Define Likelihood functions
+
+        # Building Block Likelihoods
+        def costLik(x,u):
+            return -SYS.costStep(x,u)/KLWeight
+
+        def stepLik(x,u,x_next):
+            StepError = x_next - SYS.step(x,u)
+            ScaledStepError = np.dot(invCholW,StepError)
+            return -.5 * np.dot(ScaledStepError,ScaledStepError) 
+
+        # The final likelihoods will be different from the
+        # main ones
+
+        def likLastU(u):
+            x = self.X[-1]
+            return costLik(x,u)
+
+        def likLastW(w):
+            x_prev = self.X[-2]
+            u_prev = self.U[-2]
+            f = SYS.step(x_prev,u_prev)
+            u = self.U[-1]
+            x = f+w
+            return costLik(x,u)
+
+        # Now the main likelihoods that will be computed
+        # along the trajectory.
+        
+        def likU(u,k):
+            x = self.X[k]
+            x_next = self.X[k+1]
+            return costLik(x,u) + stepLik(x,u,x_next)
+
+
+        def likW(w,k):
+            x_last = self.X[k-1]
+            u_last = self.U[k-1]
+            x_next = self.X[k+1]
+            
+            u = self.U[k]
+            f = SYS.step(x_last,u_last)
+            x = f+w
+
+            return costLik(x,u) + stepLik(x,u,x_next)
+
+        ##### Now we Gibbs sample #####
+
+        # Hack
+        stepBurn = 20
+
+        for samp in range(burnIn):
+            # First sample the last input and state
+            self.U[-1] = eslice(self.U[-1],CholU,likLastU)[0]
+                
+            f = SYS.step(self.X[-2],self.U[-2])
+            w = self.X[-1] - f
+            w = eslice(w,CholW,likLastW)[0]
+            self.X[-1] = f+w
+
+            # Now sample the input and state backwards
+            for k in range(Horizon-1):
+                self.U[k] = eslice(self.U[k],CholU,likU,(k,))[0]
+                if k > 0:
+                    f = SYS.step(self.X[k-1],self.U[k-1])
+                    w = self.X[k] - f
+                    w = eslice(w,CholW,likW,(k,))[0]
+                    self.X[k] = f + w
+
+            XSim,USim,Cost = SYS.simulatePolicy(self)
+
+            print 'Gibbs Cost: %g, Sample %d of %d' % (Cost,samp+1,burnIn)

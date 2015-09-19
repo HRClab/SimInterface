@@ -86,12 +86,15 @@ Controllers = []
 
 
 
-iLQR = POC.iterativeLQR(SYS=sysCartPole,
-                         Horizon=T,
-                         stoppingTolerance=1e-2,
-                         label='iLQR')
+gibbs = POC.gibbsOpenLoop(SYS=sysCartPole,
+                          KLWeight = 1e-4,
+                          burnIn = 100,
+                          InputCovariance = 10,
+                          StateCovariance = 1,
+                          Horizon = T,
+                          label = 'Gibbs')
 
-Controllers.append(iLQR)
+Controllers.append(gibbs)
 
 sampling = POC.samplingOpenLoop(SYS=sysCartPole,
                                 KLWeight = 1e-5,
@@ -110,15 +113,15 @@ samplingIlqr = POC.iterativeLQR(SYS=sysCartPole,
 
 Controllers.append(samplingIlqr)
 
-samplingIlqrSampling = POC.samplingOpenLoop(SYS=sysCartPole,
-                                            Horizon=T,
-                                            KLWeight = 1e-5,
-                                            burnIn = 100,
-                                            ExplorationCovariance=100,
-                                            initialPolicy = samplingIlqr,
-                                            label='Sampling->iLQR->Sampling')
+# samplingIlqrSampling = POC.samplingOpenLoop(SYS=sysCartPole,
+#                                             Horizon=T,
+#                                             KLWeight = 1e-5,
+#                                             burnIn = 100,
+#                                             ExplorationCovariance=100,
+#                                             initialPolicy = samplingIlqr,
+#                                             label='Sampling->iLQR->Sampling')
 
-Controllers.append(samplingIlqrSampling)
+# Controllers.append(samplingIlqrSampling)
 
 ##### Simulate all controllers on system #####
 print 'Simulating the system with different controllers'
@@ -155,7 +158,7 @@ def movie():
     yTop = 1.2 * sysCartPole.lPole
     
     for k in range(NumControllers):
-        ax = fig.add_subplot(4,1,k+1,autoscale_on=False,aspect=1,
+        ax = fig.add_subplot(NumControllers,1,k+1,autoscale_on=False,aspect=1,
                              xlim = (-halfWidth,halfWidth),
                              ylim = (yBottom,yTop))
 

@@ -35,3 +35,4 @@ from linearQuadraticControl import approximateLQR
 from samplingControl import samplingOpenLoop
 from samplingControl import samplingStochasticAffine
 from samplingControl import samplingMPC
+from samplingControl import gibbsOpenLoop

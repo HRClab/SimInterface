@@ -16,8 +16,13 @@ class Controller:
         return u
 
 class openLoopPolicy(Controller):
-    def __init__(self,U,*args,**kwargs):
-        Controller.__init__(self,*args,**kwargs)
+    def __init__(self,U,Horizon=None, *args,**kwargs):
+        horizon, numInputs = U.shape
+        if Horizon is None:
+            Horizon = horizon
+        
+        Controller.__init__(self,Horizon=Horizon,
+                            NumInputs=numInputs,*args,**kwargs)
         self.U = U
         
     def action(self,x,k):

@@ -47,13 +47,13 @@ class LagrangianSystem(MDP.MarkovDecisionProcess, lag.lagrangian_system):
         
         lag.lagrangian_system.__init__(self,T,V,fric,x)
         
-    def step(self,x,u,k):
+    def step(self,x,u,k=0):
         return self.stepEuler(x,u,self.dt)
 
-    def costStep(self,x,u,k):
+    def costStep(self,x,u,k=0):
         return self.cost_fun(x,u)
 
-    def getCorrectionMatrices(self,x,u,k):
+    def getCorrectionMatrices(self,x,u,k=0):
         A,B,g = self.linearization(x,u)
 
         
@@ -106,7 +106,7 @@ class inputAugmentedLagrangian(LagrangianSystem):
         LagrangianSystem.__init__(self,x=x,u=u,*args,**kwargs)
 
         
-    def step(self,x,u,k):
+    def step(self,x,u,k=0):
         uLag = self.inputFunc(u)
         return self.stepEuler(x,uLag,self.dt)
 
