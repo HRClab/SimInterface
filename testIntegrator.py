@@ -1,10 +1,9 @@
-import MarkovDecisionProcess as MDP
-import Controller as ctrl
+import pyopticon as POC
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-class Integrator(MDP.linearQuadraticSystem):
+class Integrator(POC.linearQuadraticSystem):
     """
     This is the simplest linear system dynamical system
     """
@@ -15,32 +14,42 @@ class Integrator(MDP.linearQuadraticSystem):
         B = self.dt
         Q = self.dt * 1.
         R = self.dt * 1.
-        dynMat = MDP.buildDynamicsMatrix(A,B)
-        costMat = MDP.buildCostMatrix(Cxx=Q,Cuu=R)
-        MDP.linearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
+        dynMat = POC.buildDynamicsMatrix(A,B)
+        costMat = POC.buildCostMatrix(Cxx=Q,Cuu=R)
+        POC.linearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
                                            costMatrix=costMat,x0 = self.x0)
 sys = Integrator()
 
-T = 100
+T = 50
 
 Controllers = []
-staticCtrl = ctrl.staticGain(gain=-.5,Horizon=T,label='Static')
+staticCtrl = POC.staticGain(gain=-.5,Horizon=T,label='Static')
 Controllers.append(staticCtrl)
 
-lqrCtrl = ctrl.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
+lqrCtrl = POC.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-mpcCtrl = ctrl.modelPredictiveControl(SYS=sys,
-                                      predictiveHorizon=10,
+mpcCtrl = POC.modelPredictiveControl(SYS=sys,
+                                      predictiveHorizon=5,
                                       Horizon=T,
                                       label='MPC')
 Controllers.append(mpcCtrl)
 
-samplingCtrl = ctrl.samplingOpenLoop(SYS=sys,Horizon=T,
-                                    KLWeight=1e-5,burnIn=500,
-                                    ExplorationCovariance = 3.,
+samplingCtrl = POC.samplingOpenLoop(SYS=sys,Horizon=T,
+                                    KLWeight=1e-4,burnIn=100,
+                                    ExplorationCovariance = 1,
                                     label='Sampling')
 Controllers.append(samplingCtrl)
+
+gibbsCtrl = POC.gibbsOpenLoop(SYS=sys,
+                              Horizon=T,
+                              KLWeight=1e-2,
+                              burnIn=2000,
+                              InputCovariance=1,
+                              StateCovariance=1e-4,
+                              label='Gibbs')
+
+Controllers.append(gibbsCtrl)
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,1))
