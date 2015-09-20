@@ -4,6 +4,7 @@
 
 import numpy as np
 from numpy.random import randn
+from copy import deepcopy
 import dill
 dill.settings['recurse'] = True
 
@@ -113,6 +114,31 @@ class deterministicSubsystem(differentialEquation):
                                       x0 = SYS.x0,
                                       NumStates = SYS.NumStates,
                                       NumInputs = SYS.NumInputs)
+
+##### Input Augmentation Function ####
+
+def augmentInput(SYS,inputFunc,NumInputs):
+    """
+    This will not 
+    """
+    
+    AugSys = deepcopy(SYS)
+
+    AugSys.NumInputs = NumInputs
+
+    def augmentedStep(x,u,k=0):
+        fullInput = inputFunc(x,u,k)
+        xnew = SYS.step(x,fullInput,k)
+        return xnew
+
+    AugSys.step = augmentedStep
+
+    def augmentedCost(x,u,k=0):
+        fullInput = inputFunc(x,u,k)
+        return SYS.costStep(x,fullInput,k)
+
+    AugSys.costStep = augmentedCost
+    return AugSys
 
 ##### Basic Save and Load Commands ####
 

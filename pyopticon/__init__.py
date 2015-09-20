@@ -5,6 +5,9 @@ from MarkovDecisionProcess import differentialEquation
 from MarkovDecisionProcess import driftDiffusion
 from MarkovDecisionProcess import deterministicSubsystem
 
+# Import Input augmenter
+from MarkovDecisionProcess import augmentInput
+
 # Import Linear Quadratic Systems
 from linearQuadraticSystem import linearQuadraticSystem
 from linearQuadraticSystem import linearQuadraticStochasticSystem

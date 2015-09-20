@@ -247,6 +247,7 @@ class gibbsOpenLoop(ctrl.openLoopPolicy):
                  SYS = None,
                  KLWeight=1,
                  burnIn=0,
+                 stepBurnIn=1,
                  InputCovariance=1.,
                  StateCovariance=1.,
                  initialPolicy = None,
@@ -308,23 +309,12 @@ class gibbsOpenLoop(ctrl.openLoopPolicy):
 
         ##### Now we Gibbs sample #####
 
-
         for samp in range(burnIn):
+            # First sample the last input and state
+            x = self.X[-1]
+            for stepSamp in range(stepBurnIn):
+                self.U[-1] = eslice(self.U[-1],CholU,likLastU,(x,))[0]
 
-            # Now sample the input and state backwards
-            for k in range(Horizon-1):
-                x = self.X[k]
-                x_next = self.X[k+1]
-                self.U[k] = eslice(self.U[k],CholU,likU,(x,x_next))[0]
-                if k > 0:
-                    x_prev = self.X[k-1]
-                    u_prev = self.U[k-1]
-                    f = SYS.step(x_prev,u_prev)
-                    w = self.X[k] - f
-                    u = self.U[k]
-                    x_next = self.X[k+1]
-                    w = eslice(w,CholW,likW,(x_prev,u_prev,u,x_next))[0]
-                    self.X[k] = f + w
 
             # Next sample the final state
             x_prev = self.X[-2]
@@ -335,17 +325,27 @@ class gibbsOpenLoop(ctrl.openLoopPolicy):
             w = eslice(w,CholW,likLastW,(x_prev,u_prev,u))[0]
             self.X[-1] = f+w
 
-            # First sample the last input and state
-            x = self.X[-1]
-            self.U[-1] = eslice(self.U[-1],CholU,likLastU,(x,))[0]
-
-
+            # Now sample the input and state backwards
+            for k in range(Horizon-1)[::-1]:
+                x = self.X[k]
+                x_next = self.X[k+1]
+                for stepSamp in range(stepBurnIn):
+                    self.U[k] = eslice(self.U[k],CholU,likU,(x,x_next))[0]
+                if k > 0:
+                    x_prev = self.X[k-1]
+                    u_prev = self.U[k-1]
+                    f = SYS.step(x_prev,u_prev)
+                    w = self.X[k] - f
+                    u = self.U[k]
+                    x_next = self.X[k+1]
+                    w = eslice(w,CholW,likW,(x_prev,u_prev,u,x_next))[0]
+                    self.X[k] = f + w
 
             XSim,USim,Cost = SYS.simulatePolicy(self)
             if Cost < bestCost:
-                bestU = USim
+                bestU = np.array(USim)
 
             if (samp+1) % 10 == 0:
                 print 'Gibbs Cost: %g, Sample %d of %d' % (Cost,samp+1,burnIn)
 
-        self.U = bestU
+        self.U = np.array(bestU)

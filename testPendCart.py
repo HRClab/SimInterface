@@ -87,10 +87,10 @@ Controllers = []
 
 
 gibbs = POC.gibbsOpenLoop(SYS=sysCartPole,
-                          KLWeight = 1e-4,
-                          burnIn = 100,
-                          InputCovariance = 10,
-                          StateCovariance = 1,
+                          KLWeight = 1e-2,
+                          burnIn = 1000,
+                          InputCovariance = 100,
+                          StateCovariance = 1e-3,
                           Horizon = T,
                           label = 'Gibbs')
 
@@ -105,13 +105,13 @@ sampling = POC.samplingOpenLoop(SYS=sysCartPole,
 
 Controllers.append(sampling)
 
-samplingIlqr = POC.iterativeLQR(SYS=sysCartPole,
-                                 Horizon=T,
-                                 stoppingTolerance=1e-2,
-                                 initialPolicy=sampling,
-                                 label='Sampling->iLQR')
+# samplingIlqr = POC.iterativeLQR(SYS=sysCartPole,
+#                                  Horizon=T,
+#                                  stoppingTolerance=1e-2,
+#                                  initialPolicy=sampling,
+#                                  label='Sampling->iLQR')
 
-Controllers.append(samplingIlqr)
+# Controllers.append(samplingIlqr)
 
 # samplingIlqrSampling = POC.samplingOpenLoop(SYS=sysCartPole,
 #                                             Horizon=T,
