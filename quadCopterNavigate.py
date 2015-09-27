@@ -66,8 +66,8 @@ class quadcopter(POC.MarkovDecisionProcess):
         translate = np.array([2,0,0])
         target = x0[:3] + translate
 
-        r  = 1e-2
-        qTar = 1e2
+        r  = 1e-1
+        qTar = 1e1
         qV = 1e1
 
         def quadcopterCost(x,u,k=0):
@@ -95,19 +95,20 @@ sys = quadcopter()
 chunkLength = int(np.round(1/sys.dt))
 numChunks = 4
 T = numChunks * chunkLength
-# samplingCtrl = POC.samplingMPC(SYS=sys,
-#                                Horizon=T,
-#                                KLWeight=1e-4,
-#                                ExplorationCovariance=1*np.eye(4),
-#                                PredictionHorizon=2*chunkLength,
-#                                PredictionBurnIn=2)
 
 samplingCtrl = POC.samplingOpenLoop(SYS=sys,
-                                    Horizon=T,
-                                    KLWeight=1e-4,
-                                    ExplorationCovariance=.5*np.eye(4),
-                                    burnIn=1000)
+                                Horizon=T,
+                                KLWeight=1e-4,
+                                ExplorationCovariance=.5*np.eye(4),
+                                burnIn=5000)
 
+# samplingCtrl = POC.samplingMPC(SYS=sys,
+#                                initialPolicy=initCtrl,
+#                                Horizon=T,
+#                                KLWeight=1e-4,
+#                                ExplorationCovariance=.5*np.eye(4),
+#                                PredictionHorizon=chunkLength,
+#                                PredictionBurnIn=20)
 
 X,U,Cost = sys.simulatePolicy(samplingCtrl)
 

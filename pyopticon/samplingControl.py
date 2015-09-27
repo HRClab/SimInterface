@@ -1,16 +1,21 @@
 import numpy as np
 from scipy.linalg import cholesky, inv
 from numpy.random import randn
+from copy import deepcopy
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
 import Controller as ctrl
 
 #### Basic Helper Functions
 
-def initializeOpenLoop(SYS, initialPolicy, Horizon=1):
+def initializeOpenLoop(SYS, initialPolicy=None, Horizon=None):
     if initialPolicy is None:
-        initialPolicy = ctrl.Controller(Horizon,SYS.NumInputs)
+        initPol = ctrl.Controller(Horizon,SYS.NumInputs)
+    else:
+        initPol = deepcopy(initialPolicy)
+        if Horizon is not None:
+            initPol.Horizon = Horizon
 
-    return SYS.simulatePolicy(initialPolicy)
+    return SYS.simulatePolicy(initPol)
 
 #### Slice Sampling Optimizer ####
 
