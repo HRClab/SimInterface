@@ -105,7 +105,7 @@ T = numChunks * chunkLength
 samplingCtrl = POC.samplingOpenLoop(SYS=sys,
                                     Horizon=T,
                                     KLWeight=1e-4,
-                                    ExplorationCovariance=1*np.eye(4),
+                                    ExplorationCovariance=.5*np.eye(4),
                                     burnIn=1000)
 
 
@@ -118,7 +118,7 @@ def movie(filename=None):
     l = -1.5
     ax = fig.add_subplot(111, projection='3d', autoscale_on=False, aspect=1,
                      xlim=(-l,l), ylim=(-l,l), zlim = (-l,l))
-    ax.view_init(elev=17., azim=34.)
+    ax.view_init(elev=10., azim=60.)
 
     lw = 2
     nTheta = 50
