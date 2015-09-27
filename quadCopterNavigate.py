@@ -15,7 +15,7 @@ import pyopticon as POC
 
 class quadcopter(POC.MarkovDecisionProcess):
     def __init__(self):
-        dt = 0.05
+        dt = 0.1
 
         d = .2 # arm length
         cT = 1 # thrust coeff
@@ -32,6 +32,9 @@ class quadcopter(POC.MarkovDecisionProcess):
                              [-cQ,cQ,-cQ,cQ]])
 
         aGrav =  np.array([0,0,-g])
+
+        ueq = np.sqrt(m*g/(4*cT)) * np.ones(4)
+
         
         def quadcopterStep(x,u,k=0):
             p = x[:3]
@@ -39,8 +42,8 @@ class quadcopter(POC.MarkovDecisionProcess):
             v = x[7:10]
             w = x[10:13]
 
-            vm = u**2
-            F = np.dot(InputMat[0],vm)
+            vm = (u)**2
+            F = np.array([0,0,np.dot(InputMat[0],vm)])
             Tau = np.dot(InputMat[1:],vm)
             
             pdot = uq.rot(q,v)
@@ -70,7 +73,7 @@ class quadcopter(POC.MarkovDecisionProcess):
         def quadcopterCost(x,u,k=0):
             V = x[7:]
             StateErr = x[:3] - target
-            
+
             InputCost = r * np.dot(u,u)
             StateCost = qTar * np.dot(StateErr,StateErr) + \
                         qV * np.dot(V,V)
@@ -95,14 +98,14 @@ T = numChunks * chunkLength
 # samplingCtrl = POC.samplingMPC(SYS=sys,
 #                                Horizon=T,
 #                                KLWeight=1e-4,
-#                                ExplorationCovariance=20*np.eye(4),
-#                                PredictionHorizon=5,
-#                                PredictionBurnIn=30)
+#                                ExplorationCovariance=1*np.eye(4),
+#                                PredictionHorizon=2*chunkLength,
+#                                PredictionBurnIn=2)
 
 samplingCtrl = POC.samplingOpenLoop(SYS=sys,
                                     Horizon=T,
                                     KLWeight=1e-4,
-                                    ExplorationCovariance=20*np.eye(4),
+                                    ExplorationCovariance=1*np.eye(4),
                                     burnIn=1000)
 
 
@@ -115,7 +118,7 @@ def movie(filename=None):
     l = -1.5
     ax = fig.add_subplot(111, projection='3d', autoscale_on=False, aspect=1,
                      xlim=(-l,l), ylim=(-l,l), zlim = (-l,l))
-    ax.view_init(elev=10., azim=45.)
+    ax.view_init(elev=17., azim=34.)
 
     lw = 2
     nTheta = 50
@@ -133,6 +136,11 @@ def movie(filename=None):
         ax.clear()
 
         pltList = []
+
+        pltList.append(ax.plot([sys.target[0]],
+                               [sys.target[1]],
+                               [sys.target[2]],'*'))
+
         p = X[k,:3]
         q = X[k,3:7]
         R = uq.mat(q)
@@ -144,6 +152,17 @@ def movie(filename=None):
             pltList.append(ax.plot(armCoord[0,:],armCoord[1,:],armCoord[2,:],
                                color='k',linewidth=lw))
 
+        # Draw the blades
+        for prop in range(4):
+            curCirc = np.outer(p,np.ones(nTheta)) + \
+                      np.dot(R,circ+np.outer(frame[:,prop],np.ones(nTheta)))
+            pltList.append(ax.plot(curCirc[0],curCirc[1],curCirc[2],
+                                   color=colOrd[prop],linewidth=lw))
+
+        # Draw the history
+
+        pltList.append(ax.plot(X[:k,0],X[:k,1],X[:k,2],'.',color='g'))
+        
         ax.set_xlim(-l,l)
         ax.set_ylim(-l,l)
         ax.set_zlim(-l,l)
