@@ -1,6 +1,10 @@
 import numpy as np
+from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.patches import Circle
+from matplotlib.collections import PatchCollection
+
 import pyopticon as POC
 
 class unicycle(POC.differentialEquation):
@@ -14,14 +18,28 @@ class unicycle(POC.differentialEquation):
                            omega])
             return dx
 
-        x0 = np.zeros(3)
-        self.target = np.array([0,3,0])
+        self.boardLen = 10
+        x0 = np.array([-self.boardLen*.1,self.boardLen/2.1,0])
+        self.target = np.array([self.boardLen*1.1,self.boardLen/2,0])
 
-        rV = 1e-3
-        rOmega = 1e-3
-        qP = 1
-        qTheta = 1
-    
+        rV = 1e1
+        rOmega = 1e-0
+        qP = 10
+        qTheta = 10
+        qObs = 1000
+        qScare = 200
+
+        # Generate Obstacles
+        
+        NumObstacles = 20
+        self.obstacles = self.boardLen *(.2+.6*rand(NumObstacles,2))
+
+        # NumObstacles = 1
+
+        # self.obstacles = np.array([[self.boardLen/2,self.boardLen/2]])
+        self.obstacleRadius = .5
+        self.scareRadius = self.obstacleRadius * 1.1
+
         def unicycleCost(x,u,k=0):
             v,omega = u
             p = x[:2]
@@ -30,11 +48,21 @@ class unicycle(POC.differentialEquation):
             pErr = p - self.target[:2]
             thetaErr = theta - self.target[2]
 
+            obsDistSq = np.zeros(NumObstacles)
+            for k in range(2):
+                obsDistSq += (self.obstacles[:,k]-p[k])**2
+
+            oneVec = np.ones(NumObstacles)
+            collisionIndicator = oneVec[obsDistSq<self.obstacleRadius**2]
+            scareIndicator = oneVec[obsDistSq<self.scareRadius**2]
+
             EnergyCost = rV * v**2 + rOmega * omega**2
             StateCost = qP * np.dot(pErr,pErr) + \
                         qTheta * (1-np.cos(thetaErr))
+            ObstacleCost = qObs * collisionIndicator.sum()
+            ScareCost = qScare * scareIndicator.sum()
 
-            return EnergyCost + StateCost
+            return EnergyCost + StateCost + ObstacleCost + ScareCost
 
         POC.differentialEquation.__init__(self,dt,unicycleVF,unicycleCost,
                                           x0=x0,NumInputs=2,NumStates=3)
@@ -43,13 +71,13 @@ sys = unicycle()
 
 T = int(np.round(10/sys.dt))
 samplingCtrl = POC.samplingOpenLoop(SYS=sys,Horizon=T,
-                                    KLWeight=1e-4,burnIn=1000,
-                                    ExplorationCovariance=np.diag([.25,.25]),
+                                    KLWeight=1e-4,burnIn=2000,
+                                    ExplorationCovariance=np.diag([2,.5]),
                                     label='Sampling')
 
 X,U,Cost = sys.simulatePolicy(samplingCtrl)
 
-def carMovie():
+def carMovie(filename=None):
     h=.25
     w = 1.
 
@@ -63,16 +91,25 @@ def carMovie():
     
 
     ax = fig.add_subplot(1,1,1,autoscale_on=False,aspect=1,
-                         xlim = (-5,5),ylim=(-5,5))
+                         xlim = (-2,sys.boardLen+2),
+                         ylim = (-2,sys.boardLen+2))
 
     ax.set_xticks([])
     ax.set_yticks([])
 
-    lineCar = ax.plot([],[],lw=2)[0]
-    lineTarget = ax.plot([],[],lw=1)[0]
+    patches = []
+    for obs in sys.obstacles:
+        circle = Circle(obs,sys.obstacleRadius)
+        patches.append(circle)
+
+    PCol = PatchCollection(patches,facecolors=('r',),edgecolors=('k',))
+    ax.add_collection(PCol)
+    lineTarget = ax.plot([],[],lw=1,color='k')[0]
+    lineHistory = ax.plot([],[],'.',lw=1,color='g')[0]
+    lineCar = ax.plot([],[],lw=3,color='b')[0]
+
     
     def init():
-        lineCar.set_data([],[])
         pos = sys.target[:2]
         theta = sys.target[2]
         c = np.cos(theta)
@@ -81,9 +118,14 @@ def carMovie():
         rotTar = np.dot(R,Car)
         lineTarget.set_data(pos[0]+rotTar[0],
                             pos[1]+rotTar[1])
-        return lineCar, lineTarget
+        lineCar.set_data([],[])
+        
+        lineCar.set_data([],[])
+                
+        return  lineTarget,  lineHistory, lineCar
 
     def animate(k):
+        lineHistory.set_data(X[:k,0],X[:k,1])
         pos = X[k][:2]
         theta = X[k][2]
         c = np.cos(theta)
@@ -93,7 +135,13 @@ def carMovie():
         lineCar.set_data(pos[0]+rotCar[0],
                          pos[1]+rotCar[1])
 
-        return lineCar,
+
+        if filename is not None:
+            if k == len(X)-1:
+                plt.savefig(filename,transparent=True,
+                            bbox_inches=None,format='pdf')
+
+        return lineHistory, lineCar
 
     ani = animation.FuncAnimation(fig,animate,len(X),
                                   blit=False,init_func=init,
@@ -103,5 +151,5 @@ def carMovie():
     
     return ani
 
-ani = carMovie()
+ani = carMovie('randomObstacle.pdf')
 
