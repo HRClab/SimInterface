@@ -1,5 +1,8 @@
-Unix Generated files
+# Unix Generated files
 *~
+
+# Pdf files (probably generated from simulations)
+*.pdf
 
 # Generated Python Files and folders
 *.pyc
