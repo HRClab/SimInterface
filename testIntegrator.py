@@ -30,48 +30,12 @@ Controllers.append(staticCtrl)
 lqrCtrl = POC.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-# mpcCtrl = POC.modelPredictiveControl(SYS=sys,
-#                                       predictiveHorizon=5,
-#                                       Horizon=T,
-#                                       label='MPC')
-# Controllers.append(mpcCtrl)
+mpcCtrl = POC.modelPredictiveControl(SYS=sys,
+                                      predictiveHorizon=5,
+                                      Horizon=T,
+                                      label='MPC')
+Controllers.append(mpcCtrl)
 
-# samplingCtrl = POC.samplingOpenLoop(SYS=sys,Horizon=T,
-#                                     KLWeight=1e-4,burnIn=100,
-#                                     ExplorationCovariance = 1,
-#                                     label='Sampling')
-# Controllers.append(samplingCtrl)
-
-# gibbsCtrl = SC.gibbsOpenLoop(SYS=sys,
-#                              Horizon=T,
-#                              KLWeight=1e-2,
-#                              burnIn=1000,
-#                              stepBurnIn=1,
-#                              InputCovariance=2,
-#                              StateCovariance=1e-4,
-#                              label='Gibbs')
-
-# Controllers.append(gibbsCtrl)
-
-
-def affineInput(x,u,k=0):
-    """
-    Affine Scalar Feedback
-    """
-    vec = np.hstack([1,x])
-    return np.dot(vec,u)
-
-AugSys = POC.augmentInput(sys,affineInput,2)
-affineGibbsCtrl = SC.gibbsOpenLoop(SYS=AugSys,
-                                   Horizon=T,
-                                   KLWeight=1e-2,
-                                   burnIn=1000,
-                                   stepBurnIn=1,
-                                   InputCovariance=2,
-                                   StateCovariance=1e-4,
-                                   label='Affine Gibbs')
-
-Controllers.append(affineGibbsCtrl)
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,1))
@@ -86,10 +50,8 @@ print '\nComparing Controllers\n'
 for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
-    if k < NumControllers-1:
-        X[k], U, Cost[k] = sys.simulatePolicy(controller)
-    else:
-        X[k], U, Cost[k] = AugSys.simulatePolicy(controller)
+
+    X[k], U, Cost[k] = sys.simulatePolicy(controller)
     print '%s: %g' % (name,Cost[k])
     handle = plt.plot(T,X[k],label=name)[0]
     line.append(handle)
