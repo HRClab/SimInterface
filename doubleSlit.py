@@ -1,5 +1,5 @@
-import pyopticon as POC
-import pyopticon.samplingControl as SC
+import SimInterface as SI
+import SimInterface.samplingControl as SC
 import numpy as np
 import matplotlib.pyplot as plt
 
