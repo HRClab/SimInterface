@@ -11,9 +11,9 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 import uquat as uq
-import pyopticon as POC
+import SimInterface as SI
 
-class quadcopter(POC.MarkovDecisionProcess):
+class quadcopter(SI.MarkovDecisionProcess):
     def __init__(self):
         dt = 0.1
 
@@ -81,7 +81,7 @@ class quadcopter(POC.MarkovDecisionProcess):
             InstCost = InputCost + StateCost
             return dt * InstCost
 
-        POC.MarkovDecisionProcess.__init__(self,x0=x0,
+        SI.MarkovDecisionProcess.__init__(self,x0=x0,
                                            NumStates=13,NumInputs=4)
 
         self.step = quadcopterStep
@@ -96,13 +96,13 @@ chunkLength = int(np.round(1/sys.dt))
 numChunks = 4
 T = numChunks * chunkLength
 
-samplingCtrl = POC.samplingOpenLoop(SYS=sys,
+samplingCtrl = SI.samplingOpenLoop(SYS=sys,
                                 Horizon=T,
                                 KLWeight=1e-4,
                                 ExplorationCovariance=.5*np.eye(4),
                                 burnIn=5000)
 
-# samplingCtrl = POC.samplingMPC(SYS=sys,
+# samplingCtrl = SI.samplingMPC(SYS=sys,
 #                                initialPolicy=initCtrl,
 #                                Horizon=T,
 #                                KLWeight=1e-4,
