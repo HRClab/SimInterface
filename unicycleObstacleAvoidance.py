@@ -27,16 +27,23 @@ class unicycle(SI.smoothDiffEq):
         qP = 50
         qTheta = 10
         qObs = 10000
+        lObs = .01
         qScare = 200
 
         # Generate Obstacles
         
-        NumObstacles = 100
+        NumObstacles = 50
         self.obstacles = self.boardLen *(.1+.8*rand(NumObstacles,2))
 
         self.obstacleRadius = .2
         self.scareRadius = self.obstacleRadius * 1.2
 
+        def bump(x):
+            if np.abs(x) < 1:
+                return np.exp(1./(x**2. - 1))
+            else:
+                return 0.
+        
         def unicycleCost(x,u,k=0):
             v,omega = u
             p = x[:2]
@@ -49,17 +56,19 @@ class unicycle(SI.smoothDiffEq):
             for k in range(2):
                 obsDistSq += (self.obstacles[:,k]-p[k])**2
 
-            oneVec = np.ones(NumObstacles)
-            collisionIndicator = oneVec[obsDistSq<self.obstacleRadius**2]
-            scareIndicator = oneVec[obsDistSq<self.scareRadius**2]
+            signedDistSq = obsDistSq - self.obstacleRadius**2
+                
+            # oneVec = np.ones(NumObstacles)
+            # collisionIndicator = oneVec[obsDistSq<self.obstacleRadius**2]
+            # scareIndicator = oneVec[obsDistSq<self.scareRadius**2]
 
             EnergyCost = rV * v**2 + rOmega * omega**2
             StateCost = qP * np.dot(pErr,pErr) + \
                         qTheta * (1-np.cos(thetaErr))
-            ObstacleCost = qObs * collisionIndicator.sum()
-            ScareCost = qScare * scareIndicator.sum()
+            ObstacleCost = qObs * np.exp(-signedDistSq/lObs).sum()
+            # ScareCost = qScare * scareIndicator.sum()
 
-            return EnergyCost + StateCost + ObstacleCost + ScareCost
+            return EnergyCost + StateCost + ObstacleCost
 
         def unicycleLin(x,u,k=0):
             v = u[0]
