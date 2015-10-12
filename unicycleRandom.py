@@ -5,9 +5,9 @@ import matplotlib.animation as animation
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
 
-import pyopticon as POC
+import SimInterface as SI
 
-class unicycle(POC.differentialEquation):
+class unicycle(SI.differentialEquation):
     def __init__(self):
         dt = .1
         def unicycleVF(x,u,k=0):
@@ -61,7 +61,7 @@ class unicycle(POC.differentialEquation):
 
             return EnergyCost + StateCost + ObstacleCost + ScareCost
 
-        POC.differentialEquation.__init__(self,dt,unicycleVF,unicycleCost,
+        SI.differentialEquation.__init__(self,dt,unicycleVF,unicycleCost,
                                           x0=x0,NumInputs=2,NumStates=3)
             
 sys = unicycle()
@@ -70,7 +70,7 @@ sys = unicycle()
 chunkLength = int(np.round(1/sys.dt))
 numChunks = 60
 T = numChunks *chunkLength
-samplingCtrl = POC.samplingMPC(SYS=sys,
+samplingCtrl = SI.samplingMPC(SYS=sys,
                                Horizon=T,
                                KLWeight=1e-4,
                                ExplorationCovariance=np.diag([1,.5]),

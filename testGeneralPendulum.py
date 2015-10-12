@@ -1,4 +1,4 @@
-import pyopticon as POC
+import SimInterface as SI
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -8,7 +8,7 @@ import sympy_utils as su
 #### Define the system ####
 
 
-class pendulum(POC.LagrangianSystem):
+class pendulum(SI.LagrangianSystem):
     """
     A planar pendulum with an arbitrary number of links
     """
@@ -74,7 +74,7 @@ class pendulum(POC.LagrangianSystem):
         # Position Function for Plotting
         self.pos_fun = su.functify(pos,x)
         
-        POC.LagrangianSystem.__init__(self,T,V,fric,Cost,x,u,dt,x0)
+        SI.LagrangianSystem.__init__(self,T,V,fric,Cost,x,u,dt,x0)
 
 
 if not 'sysGenPend' in locals():
@@ -104,7 +104,7 @@ T = 100
 Controllers = []
 
 
-sampling = POC.samplingOpenLoop(SYS=sysGenPend,
+sampling = SI.samplingOpenLoop(SYS=sysGenPend,
                                     Horizon=T,
                                     KLWeight=1e-4,
                                     burnIn=2000,

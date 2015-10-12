@@ -1,10 +1,10 @@
-import pyopticon as POC
-import pyopticon.samplingControl as SC
+import SimInterface as SI
+import SimInterface.samplingControl as SC
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-class Integrator(POC.linearQuadraticSystem):
+class Integrator(SI.linearQuadraticSystem):
     """
     This is the simplest linear system dynamical system
     """
@@ -15,22 +15,22 @@ class Integrator(POC.linearQuadraticSystem):
         B = self.dt
         Q = self.dt * 1.
         R = self.dt * 1.
-        dynMat = POC.buildDynamicsMatrix(A,B)
-        costMat = POC.buildCostMatrix(Cxx=Q,Cuu=R)
-        POC.linearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
+        dynMat = SI.buildDynamicsMatrix(A,B)
+        costMat = SI.buildCostMatrix(Cxx=Q,Cuu=R)
+        SI.linearQuadraticSystem.__init__(self,dynamicsMatrix=dynMat,
                                            costMatrix=costMat,x0 = self.x0)
 sys = Integrator()
 
 T = 50
 
 Controllers = []
-staticCtrl = POC.staticGain(gain=-.5,Horizon=T,label='Static')
+staticCtrl = SI.staticGain(gain=-.5,Horizon=T,label='Static')
 Controllers.append(staticCtrl)
 
-lqrCtrl = POC.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
+lqrCtrl = SI.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-mpcCtrl = POC.modelPredictiveControl(SYS=sys,
+mpcCtrl = SI.modelPredictiveControl(SYS=sys,
                                       predictiveHorizon=5,
                                       Horizon=T,
                                       label='MPC')

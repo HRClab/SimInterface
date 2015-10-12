@@ -1,4 +1,4 @@
-import pyopticon as POC
+import SimInterface as SI
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -8,7 +8,7 @@ import sympy_utils as su
 
 #### Define the pendulum on a cart system ####
 
-class cartPole(POC.inputAugmentedLagrangian):
+class cartPole(SI.inputAugmentedLagrangian):
     def __init__(self):
         dt = 0.05
         mPole = 1.
@@ -67,7 +67,7 @@ class cartPole(POC.inputAugmentedLagrangian):
         self.pos_fun = su.functify(pos,x)
 
         # Now initialize all the other bits
-        POC.inputAugmentedLagrangian.__init__(self,
+        SI.inputAugmentedLagrangian.__init__(self,
                                               inputFunc=inputFunc,
                                               u=u,
                                               x=x,
@@ -87,7 +87,7 @@ Controllers = []
 
 
 
-sampling = POC.samplingOpenLoop(SYS=sysCartPole,
+sampling = SI.samplingOpenLoop(SYS=sysCartPole,
                                 KLWeight = 1e-5,
                                 burnIn = 100,
                                 ExplorationCovariance = 100,
@@ -96,7 +96,7 @@ sampling = POC.samplingOpenLoop(SYS=sysCartPole,
 
 Controllers.append(sampling)
 
-samplingIlqr = POC.iterativeLQR(SYS=sysCartPole,
+samplingIlqr = SI.iterativeLQR(SYS=sysCartPole,
                                  Horizon=T,
                                  stoppingTolerance=1e-2,
                                  initialPolicy=sampling,

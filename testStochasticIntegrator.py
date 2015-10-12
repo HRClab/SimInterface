@@ -1,4 +1,4 @@
-import pyopticon as POC
+import SimInterface as SI
 import numpy as np
 from numpy.random import randn
 import matplotlib.pyplot as plt
@@ -13,15 +13,15 @@ def buildSystems():
         R = dt * 1.
         W = np.sqrt(dt) * .1
         noiseMat = np.array([[W]])
-        dynMat = POC.buildDynamicsMatrix(A,B)
-        costMat = POC.buildCostMatrix(Cxx=Q,Cuu=R)
+        dynMat = SI.buildDynamicsMatrix(A,B)
+        costMat = SI.buildCostMatrix(Cxx=Q,Cuu=R)
 
-        sys = POC.linearQuadraticStochasticSystem(dynMat,
+        sys = SI.linearQuadraticStochasticSystem(dynMat,
                                                   costMat,
                                                   noiseMat,
                                                   x0=x0)
 
-        sysDet = POC.linearQuadraticSystem(dynMat,
+        sysDet = SI.linearQuadraticSystem(dynMat,
                                            costMat,
                                            x0=x0)
 
@@ -33,19 +33,19 @@ T = 100
 
 Controllers = []
 
-staticCtrl = POC.staticGain(gain=-.5,Horizon=T,label='Static')
+staticCtrl = SI.staticGain(gain=-.5,Horizon=T,label='Static')
 Controllers.append(staticCtrl)
 
-lqrCtrl = POC.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
+lqrCtrl = SI.linearQuadraticRegulator(SYS=sys,Horizon=T,label='LQR')
 Controllers.append(lqrCtrl)
 
-deterministicSampling = POC.samplingOpenLoop(SYS=sysDet,
+deterministicSampling = SI.samplingOpenLoop(SYS=sysDet,
                                               Horizon=T,
                                               KLWeight=1e-4,
                                               burnIn=100,
                                               ExplorationCovariance=3)
 
-sampleMPCctrl = POC.samplingMPC(SYS=sysDet,
+sampleMPCctrl = SI.samplingMPC(SYS=sysDet,
                                  Horizon=T,
                                  KLWeight=1e-4,
                                  ExplorationCovariance=3.,
@@ -96,7 +96,7 @@ print '\nTesting Mean Cost Predictions\n'
 # Testing 
 gain = randn(T*2)
 
-randomPolicy = POC.flatVaryingAffine(gain,1,T,label='Random')
+randomPolicy = SI.flatVaryingAffine(gain,1,T,label='Random')
 
 
 cost = sys.simulatePolicy(randomPolicy)[2]

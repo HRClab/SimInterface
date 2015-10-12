@@ -1,4 +1,4 @@
-import pyopticon as POC
+import SimInterface as SI
 import numpy as np
 from numpy.random import randn
 import matplotlib.pyplot as plt
@@ -12,7 +12,7 @@ mpl.rcParams.update({'font.size':22})
 
 #### Define the pendulum on a cart system ####
 
-class pendulumCart(POC.inputAugmentedLagrangian):
+class pendulumCart(SI.inputAugmentedLagrangian):
     def __init__(self):
         dt = 0.05
         mPole = 1.
@@ -72,7 +72,7 @@ class pendulumCart(POC.inputAugmentedLagrangian):
         self.pos_fun = su.functify(pos,x)
 
         # Now initialize all the other bits
-        POC.inputAugmentedLagrangian.__init__(self,
+        SI.inputAugmentedLagrangian.__init__(self,
                                               inputFunc=inputFunc,
                                               u=u,
                                               x=x,
@@ -99,7 +99,7 @@ samplingCosts = np.zeros((NumTrials,NumIter+1))
 
 for trial in range(NumTrials):
     sysPendCart.randomizeInput()
-    iLQR = POC.iterativeLQR(SYS=sysPendCart,
+    iLQR = SI.iterativeLQR(SYS=sysPendCart,
                          Horizon=T,
                          maxIter=NumIter,
                          label='iLQR')
@@ -112,7 +112,7 @@ for trial in range(NumTrials):
     
     iLQRCosts[trial] = iLQRcost
 
-    sampling = POC.samplingOpenLoop(SYS=sysPendCart,
+    sampling = SI.samplingOpenLoop(SYS=sysPendCart,
                                      KLWeight = 1e-5,
                                      burnIn = NumIter,
                                      ExplorationCovariance = 100,
