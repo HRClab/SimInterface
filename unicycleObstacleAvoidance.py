@@ -1,4 +1,6 @@
 import numpy as np
+import sympy as sym
+import sympy_utils as su
 from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -18,31 +20,32 @@ class unicycle(SI.smoothDiffEq):
                            omega])
             return dx
 
-        self.boardLen = 10
+        self.boardLen = 15
         x0 = np.array([-self.boardLen*.1,self.boardLen/2.1,0])
         self.target = np.array([self.boardLen*1.1,self.boardLen/2,0])
 
-        rV = 1e1
-        rOmega = 1e-0
+        rV = 1e2
+        rOmega = 1e1
         qP = 50
         qTheta = 10
         qObs = 10000
-        lObs = .01
-        qScare = 200
+        lObs = .1
 
         # Generate Obstacles
         
-        NumObstacles = 50
+        NumObstacles = 20
         self.obstacles = self.boardLen *(.1+.8*rand(NumObstacles,2))
 
-        self.obstacleRadius = .2
-        self.scareRadius = self.obstacleRadius * 1.2
+        self.obstacleRadius = .75
 
-        def bump(x):
-            if np.abs(x) < 1:
-                return np.exp(1./(x**2. - 1))
-            else:
-                return 0.
+        def obstacleDistances(p):
+            obsDistSq = np.zeros(NumObstacles,dtype=p.dtype)
+            for k in range(2):
+                obsDistSq += (self.obstacles[:,k]-p[k])**2
+
+            signedDistSq = obsDistSq - self.obstacleRadius**2
+            return signedDistSq
+
         
         def unicycleCost(x,u,k=0):
             v,omega = u
@@ -52,24 +55,52 @@ class unicycle(SI.smoothDiffEq):
             pErr = p - self.target[:2]
             thetaErr = theta - self.target[2]
 
-            obsDistSq = np.zeros(NumObstacles)
-            for k in range(2):
-                obsDistSq += (self.obstacles[:,k]-p[k])**2
-
-            signedDistSq = obsDistSq - self.obstacleRadius**2
-                
-            # oneVec = np.ones(NumObstacles)
-            # collisionIndicator = oneVec[obsDistSq<self.obstacleRadius**2]
-            # scareIndicator = oneVec[obsDistSq<self.scareRadius**2]
+            signedDistSq = obstacleDistances(p)
 
             EnergyCost = rV * v**2 + rOmega * omega**2
             StateCost = qP * np.dot(pErr,pErr) + \
                         qTheta * (1-np.cos(thetaErr))
             ObstacleCost = qObs * np.exp(-signedDistSq/lObs).sum()
-            # ScareCost = qScare * scareIndicator.sum()
 
             return EnergyCost + StateCost + ObstacleCost
 
+
+        # Calculate Symbolic Costs
+        x = sym.symarray('x',3)
+        u = sym.symarray('u',2)
+        z = np.hstack((x,u))
+
+        p = x[:2]
+        theta = x[2]
+        v = u[0]
+        omega = u[1]
+
+        EnergyCost = rV * v**2 + rOmega * omega**2
+        
+        pErr = p - self.target[:2]
+        thetaErr = theta - self.target[2]
+        StateCost = qP * np.dot(pErr,pErr) + qTheta * (1-sym.cos(thetaErr))
+
+        signedDistSq = obstacleDistances(p)
+        ObstacleCost = 0
+        for sd in signedDistSq:
+            ObstacleCost += qObs * sym.exp(-sd/lObs)
+
+        cost = EnergyCost + StateCost + ObstacleCost
+
+        Jac = su.jacobian(cost,z)
+        Hes = su.jacobian(Jac,z)
+
+        Jac_fun = su.functify(Jac,z)
+        Hes_fun = su.functify(Hes,z)
+        
+        def costDeriv(x,u,k=0):
+            z = np.hstack((x,u))
+            Jac = Jac_fun(z)
+            Hes = Hes_fun(z)
+            return Jac, Hes
+                                   
+            
         def unicycleLin(x,u,k=0):
             v = u[0]
             theta = x[2]
@@ -81,8 +112,6 @@ class unicycle(SI.smoothDiffEq):
                           [0,1]])
             return A,B
 
-        def costDeriv(x,u,k=0):
-            pass
         
         SI.smoothDiffEq.__init__(self,
                                  dt=dt,
@@ -96,16 +125,13 @@ sys = unicycle()
 
 
 chunkLength = int(np.round(1/sys.dt))
-numChunks = 60
+numChunks = 10
 T = numChunks *chunkLength
-samplingCtrl = SI.samplingMPC(SYS=sys,
-                               Horizon=T,
-                               KLWeight=1e-4,
-                               ExplorationCovariance=np.diag([1,.5]),
-                               PredictionHorizon=2*chunkLength,
-                               PredictionBurnIn=2)
-
-X,U,Cost = sys.simulatePolicy(samplingCtrl)
+ilqrCtrl = SI.iterativeLQR(SYS=sys,
+                           Horizon=T,
+                           stoppingTolerance=1e-2)
+X,U,Cost = sys.simulatePolicy(ilqrCtrl)
+                           
 
 def carMovie(filename=None):
     h=.25
