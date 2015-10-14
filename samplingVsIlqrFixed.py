@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import sympy as sym
-import sympy_utils as su
+import utils.sympy_utils as su
 
 np.random.seed(123152)
 mpl.rcParams.update({'font.size':22})

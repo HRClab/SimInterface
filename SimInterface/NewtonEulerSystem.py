@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import eig
-import sympy_utils as su
+import utils.sympy_utils as su
 import numpy_utils as nu
 import NewtonEuler as ne
 

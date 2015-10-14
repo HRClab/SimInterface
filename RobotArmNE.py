@@ -2,7 +2,7 @@
 
 import NewtonEuler as ne
 import MarkovDecisionProcess as MDP
-import sympy_utils as su
+import utils.sympy_utils as su
 import pyuquat as uq
 import sympy as sym
 import numpy as np

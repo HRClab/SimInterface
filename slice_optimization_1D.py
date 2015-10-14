@@ -8,7 +8,7 @@ from numpy.random import randn
 from scipy.linalg import solve
 import matplotlib.pyplot as plt
 from bovy_mcmc.elliptical_slice import elliptical_slice as eslice
-import sympy_utils as su
+import utils.sympy_utils as su
 
 # Pick some coefficients for a nice looking polynomial
 M = np.array([[1,1,1],[4,16,64],[2,16,3*32]])

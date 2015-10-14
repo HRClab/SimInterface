@@ -1,6 +1,6 @@
 import numpy as np
 import sympy as sym
-import sympy_utils as su
+import utils.sympy_utils as su
 from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
