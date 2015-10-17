@@ -2,7 +2,7 @@ from scipy.linalg import solve
 import numpy as np
 import sympy as sym
 import uquat as uq
-import utils.sympy_utils as su
+import SimInterface.utils.sympy_utils as su
 import dill
 dill.settings['recurse'] = True
 
