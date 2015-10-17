@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sympy as sym
-import utils.sympy_utils as su
+import SimInterface.utils.sympy_utils as su
 
 #### Define the system ####
 
@@ -103,22 +103,28 @@ print 'Initializing the Controllers'
 T = 100
 Controllers = []
 
+impedance = SI.staticFunction(impedanceCtrlFunc,Horizon=T,label='Impedance')
+mpc = SI.modelPredictiveControl(SYS=sysGenPend,Horizon=T,
+                                predictiveHorizon=10,label='MPC')
 
-sampling = SI.samplingOpenLoop(SYS=sysGenPend,
-                                    Horizon=T,
-                                    KLWeight=1e-4,
-                                    burnIn=2000,
-                                    ExplorationCovariance=15.*\
-                                    np.eye(sysGenPend.NumInputs),
-                                    label='Sampling')
-Controllers.append(sampling)
+iLQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
+                       Horizon=T,label='iLQR')
+
+MPCtoILQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
+                            initialPolicy=impedance,
+                            Horizon=T,label='impedance->iLQR')
+
+Controllers.append(impedance)
+Controllers.append(mpc)
+Controllers.append(iLQR)
+Controllers.append(MPCtoILQR)
 
 
 #### Prepare the simulations ####
 print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
-X = np.zeros((NumControllers,T,sysGenPend.NumStates)).squeeze()
-U = np.zeros((NumControllers,T,sysGenPend.NumInputs)).squeeze()
+X = np.zeros((NumControllers,T,sysGenPend.NumStates))
+U = np.zeros((NumControllers,T,sysGenPend.NumInputs))
 Cost = np.zeros(NumControllers)
 Time = sysGenPend.dt * np.arange(T)
 
