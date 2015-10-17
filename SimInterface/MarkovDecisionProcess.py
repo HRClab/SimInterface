@@ -4,9 +4,8 @@
 
 import numpy as np
 from numpy.random import randn
+import numpy_utils as nu
 from copy import deepcopy
-import dill
-dill.settings['recurse'] = True
 
 class MarkovDecisionProcess:
     def __init__(self,x0=None,NumStates=1,NumInputs=1,NumNoiseInputs=0):
@@ -49,7 +48,7 @@ class MarkovDecisionProcess:
 
 
 class differentialEquation(MarkovDecisionProcess):
-    def __init__(self,dt,vectorField,costFunc,*args,**kwargs):
+    def __init__(self,dt=0.05,vectorField=None,costFunc=None,*args,**kwargs):
         self.dt = dt
         self.vectorField = vectorField
         self.costFunc = costFunc
@@ -60,7 +59,68 @@ class differentialEquation(MarkovDecisionProcess):
 
     def costStep(self,x,u,k):
         return self.dt * self.costFunc(x,u,k)
-    
+
+class smoothDiffEq(differentialEquation):
+    """ 
+    This is a subclass of differentialEquation. 
+    The extra required arguments are
+    dynamicsDerivatives, the first derivatives of the dynamics
+    costDerivatives, the first and second derivatives of the cost
+    """
+    def __init__(self,dynamicsDerivatives=None,costDerivatives=None,
+                 *args,**kwargs):
+        
+        differentialEquation.__init__(self,*args,**kwargs)
+
+        # A bit of explanation of these derivatives should be given
+        self.dynamicsDerivatives = dynamicsDerivatives
+        self.costDerivatives = costDerivatives
+
+    def getCorrectionMatrices(self,x,u,k=None):
+        A,B = self.dynamicsDerivatives(x,u,k)
+        Ad = np.eye(self.NumStates) + self.dt * A
+        Bd = self.dt * B
+        gd = np.zeros((self.NumStates,1))
+        dynMat = np.hstack((gd,Ad,Bd))
+
+        Jac,Hes = self.costDerivatives(x,u,k)
+        C11 = [[self.costFunc(x,u,k)]]
+        C1z = np.array([.5 * Jac])
+        Cz1 = C1z.T
+        Czz = .5 * Hes
+        costMat = np.vstack((np.hstack((C11,C1z)),
+                             np.hstack((Cz1,Czz))))
+        costMat = self.dt * costMat
+
+        return dynMat, costMat
+    def getApproximationMatrices(self,x,u,k=None):
+        # First calculate the dynamics
+        A,B = self.dynamicsDerivatives(x,u,k)
+        vf = self.vectorField(x,u,k)
+        Ad = np.eye(self.NumStates) + self.dt * A
+        Bd = self.dt * B
+        gd = self.dt * (vf - np.dot(A,x) - np.dot(B,u))
+        gd = nu.castToShape(gd,(self.NumStates,1))
+        dynMat = np.hstack((gd,Ad,Bd))
+
+        # Now Calculate the cost
+        Jac, Hes = self.costDerivatives(x,u,k)
+        z = np.hstack((x,u))
+        cost = self.costFunc(x,u,k)
+        C11 = [[cost - np.dot(Jac,z) + .5 * np.dot(z,np.dot(Hes,z))]]
+        C1z = .5 * (Jac - np.dot(z,Hes))
+        C1z = nu.castToShape(C1z,(1,self.NumStates+self.NumInputs))
+        Cz1 = C1z.T
+        Czz = .5 * Hes
+        costMat = np.vstack((np.hstack((C11,C1z)),
+                             np.hstack((Cz1,Czz))))
+        
+        costMat = self.dt * costMat
+
+        return dynMat,costMat
+        
+        
+
 class driftDiffusion(MarkovDecisionProcess):
     """
     A stochastic differential equation of the form:
