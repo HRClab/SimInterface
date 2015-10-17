@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.linalg import eig
-import sympy_utils as su
+import utils.sympy_utils as su
 import numpy_utils as nu
 import pylagrange as lag
 
@@ -44,7 +44,7 @@ class LagrangianSystem(MDP.MarkovDecisionProcess, lag.lagrangian_system):
                              np.hstack((Cz1Mat,Czz))))
 
         self.costMat_fun = su.functify(CostMat,(x,u))
-        
+
         lag.lagrangian_system.__init__(self,T,V,fric,x)
         
     def step(self,x,u,k=0):
