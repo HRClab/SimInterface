@@ -44,7 +44,7 @@ class LagrangianSystem(MDP.MarkovDecisionProcess, lag.lagrangian_system):
                              np.hstack((Cz1Mat,Czz))))
 
         self.costMat_fun = su.functify(CostMat,(x,u))
-        
+
         lag.lagrangian_system.__init__(self,T,V,fric,x)
         
     def step(self,x,u,k=0):
