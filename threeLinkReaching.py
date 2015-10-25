@@ -125,7 +125,7 @@ print 'Simulating the system with the different controllers'
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,sysGenPend.NumStates))
 U = np.zeros((NumControllers,T,sysGenPend.NumInputs))
-Cost = np.zeros(NumControllers)
+Cost = np.zeros((NumControllers,T))
 Time = sysGenPend.dt * np.arange(T)
 
 #### Simulate all of the controllers #### 
@@ -134,7 +134,7 @@ for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
     X[k], U[k], Cost[k] = sysGenPend.simulatePolicy(controller)
-    print '%s: %g' % (name,Cost[k])
+    print '%s: %g' % (name,Cost[k].sum())
 
 
 #### Play a movie of the controllers in action ####

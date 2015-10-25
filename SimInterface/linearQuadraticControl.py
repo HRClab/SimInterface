@@ -107,7 +107,7 @@ class iterativeLQR(ctrl.varyingAffine):
 
         gainShape = (self.Horizon, SYS.NumInputs, SYS.NumStates+1)
 
-        bestCost = initCost
+        bestCost = initCost.sum()
         bestGain = np.zeros(gainShape)
         for k in range(self.Horizon):
             bestGain[k,:,0] = U[k]
@@ -172,6 +172,7 @@ class iterativeLQR(ctrl.varyingAffine):
 
             try:
                 newX,newU,newCost = SYS.simulatePolicy(testController)
+                newCost = newCost.sum()
                 costChange = newCost-bestCost
                 print 'iLQR cost: %g, costChange %g' % (newCost,costChange)
                 if newCost < bestCost:
