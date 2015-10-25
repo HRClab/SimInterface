@@ -36,6 +36,8 @@ mpcCtrl = SI.modelPredictiveControl(SYS=sys,
                                       label='MPC')
 Controllers.append(mpcCtrl)
 
+actorCriticCtrl = SI.actorCriticLQR(SYS=sys,Horizon=T,label='Actor Critic')
+Controllers.append(actorCriticCtrl)
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,1))

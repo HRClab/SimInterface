@@ -29,10 +29,10 @@ class MarkovDecisionProcess:
             
         X = np.zeros((Horizon,self.NumStates))
         U = np.zeros((Horizon,self.NumInputs))
-
         x = self.x0
         X[0] = x
-        cost = 0.
+
+        cost = 0
         for k in range(Horizon):
             u = policy.action(x,k)
             cost = cost + self.costStep(x,u,k)
