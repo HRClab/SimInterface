@@ -29,19 +29,19 @@ class MarkovDecisionProcess:
             
         X = np.zeros((Horizon,self.NumStates))
         U = np.zeros((Horizon,self.NumInputs))
-
+        Cost = np.zeros(Horizon)
         x = self.x0
         X[0] = x
-        cost = 0.
+
         for k in range(Horizon):
             u = policy.action(x,k)
-            cost = cost + self.costStep(x,u,k)
+            Cost[k] = self.costStep(x,u,k)
             x = self.step(x,u,k)
             U[k] = u
             if k < Horizon-1:
                 X[k+1] = x
 
-        return X,U,cost
+        return X,U,Cost
 
     def generateNoise(self,Horizon,W):
         pass

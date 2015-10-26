@@ -1,4 +1,5 @@
 import SimInterface as SI
+import SimInterface.samplingControl as SC
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -35,10 +36,18 @@ mpcCtrl = SI.modelPredictiveControl(SYS=sys,
                                       label='MPC')
 Controllers.append(mpcCtrl)
 
+actorCriticCtrl = SI.actorCriticLQR(SYS=sys,Horizon=T,
+                                    Covariance=np.array([[1.]]),
+                                    EpisodeLength=40,EpisodeCount=100,
+                                    TraceDecayFactor = .9,
+                                    DiscountFactor = .9,
+                                    ForgettingFactor = .9,
+                                    label='Actor Critic')
+Controllers.append(actorCriticCtrl)
 
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,1))
-Cost = np.zeros(NumControllers)
+Cost = np.zeros((NumControllers,T))
 T = sys.dt * np.arange(staticCtrl.Horizon)
 plt.figure(1)
 plt.clf()
@@ -51,7 +60,7 @@ for k in range(NumControllers):
     name = controller.label
 
     X[k], U, Cost[k] = sys.simulatePolicy(controller)
-    print '%s: %g' % (name,Cost[k])
+    print '%s: %g' % (name,Cost[k].sum())
     handle = plt.plot(T,X[k],label=name)[0]
     line.append(handle)
 

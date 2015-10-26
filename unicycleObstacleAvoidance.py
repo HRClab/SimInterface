@@ -207,5 +207,5 @@ def carMovie(filename=None):
     
     return ani
 
-ani = carMovie()
+ani = carMovie('randomObstacleMPC.pdf')
 

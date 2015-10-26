@@ -33,3 +33,5 @@ from linearQuadraticControl import linearQuadraticRegulator
 from linearQuadraticControl import modelPredictiveControl
 from linearQuadraticControl import iterativeLQR
 from linearQuadraticControl import approximateLQR
+
+from adaptiveControl import actorCriticLQR
