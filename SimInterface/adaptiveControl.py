@@ -54,7 +54,7 @@ class actorCriticLQR(ctrl.staticGain):
     In particular, This is a variant of Table 1 of 
     "Natural Actor-Critic" by Peters, Vijayakumar, and Schaal
     """
-    def __init__(self,SYS,
+    def __init__(self,SYS,verbose=False,
                  EpisodeLength=1,EpisodeCount=1,stepSizeConstant=1.,
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
                  stateGain=None,Covariance=None,
@@ -134,8 +134,9 @@ class actorCriticLQR(ctrl.staticGain):
             costMatrixStacked = featureWeights[1:n*(n+1)/2+1]
             P = unstackSymmetricMatrix(costMatrixStacked)
             costEst = np.dot(X[0],np.dot(P,X[0])) + constCost
-            print 'Episode Cost: %g, Estimated Episode Cost: %g' % (TrueCost,
-                                                                    costEst)
+            if verbose:
+                print 'Episode Cost: %g, Estimated Episode Cost: %g' \
+                    % (TrueCost,costEst)
                                                                     
 
             policyGradient = featureWeights[n*(n+1)/2 + 1:]
