@@ -3,10 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import sympy as sym
-import utils.sympy_utils as su
+import SimInterface.utils.sympy_utils as su
 
-np.random.seed(123152)
 mpl.rcParams.update({'font.size':22})
+np.random.seed(123152)
+
+
+filename = 'costDecreaseFixedStart.pdf'
 
 #### Define the pendulum on a cart system ####
 
@@ -78,7 +81,6 @@ class pendulumCart(SI.inputAugmentedLagrangian):
                                               x=x,
                                               T=T,V=V,fric=fric,
                                               cost=Cost,dt=dt,x0=x0)
-                                     
 
 sysPendCart = pendulumCart()
 
@@ -87,15 +89,11 @@ sysPendCart = pendulumCart()
 print 'Initializing the Controllers'
 
 T = 100
-NumIter = 100
+NumIter = 10
 NumTrials = 10
 
 
-
-iLQR = SI.iterativeLQR(SYS=sysPendCart,
-                         Horizon=T,
-                         stoppingTolerance=1e-2,
-                         label='iLQR')
+iLQRCosts = np.zeros((NumTrials,NumIter+1))
 
 samplingCosts = np.zeros((NumTrials,NumIter+1))
 for trial in range(NumTrials):
@@ -133,7 +131,7 @@ plt.ylabel('Cost')
 plt.xlabel('Iteration Number')
 plt.legend(handles=pltHandles)
 
-plt.savefig('costDecreaseFixedStart.pdf',transparent=True,
+plt.savefig(filename,transparent=True,
             bbox_inches=None,format='pdf')
 
 

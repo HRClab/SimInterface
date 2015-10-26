@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sympy as sym
-import utils.sympy_utils as su
+import SimInterface.utils.sympy_utils as su
 
 
 #### Define the pendulum on a cart system ####
@@ -97,10 +97,11 @@ sampling = SI.samplingOpenLoop(SYS=sysCartPole,
 Controllers.append(sampling)
 
 samplingIlqr = SI.iterativeLQR(SYS=sysCartPole,
-                                 Horizon=T,
-                                 stoppingTolerance=1e-2,
-                                 initialPolicy=sampling,
-                                 label='Sampling->iLQR')
+                               Horizon=T,
+                               stoppingTolerance=1e-2,
+                               maxIter  = 100,
+                               initialPolicy=sampling,
+                               label='Sampling->iLQR')
 
 Controllers.append(samplingIlqr)
 
@@ -110,7 +111,7 @@ print 'Simulating the system with different controllers'
 NumControllers = len(Controllers)
 X = np.zeros((NumControllers,T,sysCartPole.NumStates))
 U = np.zeros((NumControllers,T,sysCartPole.NumInputs))
-Cost = np.zeros(NumControllers)
+Cost = np.zeros((NumControllers,T))
 
 Time = sysCartPole.dt * np.arange(T)
 
@@ -118,7 +119,7 @@ for k in range(NumControllers):
     controller = Controllers[k]
     name = controller.label
     X[k],U[k],Cost[k] = sysCartPole.simulatePolicy(controller)
-    print '%s: %g' % (name,Cost[k])
+    print '%s: %g' % (name,Cost[k].sum())
 
 
 def movie():

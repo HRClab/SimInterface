@@ -75,7 +75,8 @@ for k in range(NumControllers):
     X = np.zeros((NumRuns,T,1))
     Cost = np.zeros(NumRuns)
     for run in range(NumRuns):
-        X[run], U, Cost[run] = sys.simulatePolicy(controller)
+        X[run], U, CostSeq = sys.simulatePolicy(controller)
+        Cost[k] = CostSeq.sum()
         
     XMean[k] = X.mean(axis=0)
     XStd[k] = X.std(axis=0)

@@ -4,7 +4,7 @@ from numpy.random import randn
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import sympy as sym
-import utils.sympy_utils as su
+import SimInterface.utils.sympy_utils as su
 
 np.random.seed(123152)
 mpl.rcParams.update({'font.size':22})
@@ -89,8 +89,8 @@ sysPendCart = pendulumCart()
 print 'Initializing the Controllers'
 
 T = 100
-NumIter = 100
-NumTrials = 5
+NumIter = 10
+NumTrials = 10
 
 
 iLQRCosts = np.zeros((NumTrials,NumIter+1))

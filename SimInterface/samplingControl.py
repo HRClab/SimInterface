@@ -149,7 +149,7 @@ class samplingOpenLoop(ctrl.flatOpenLoopPolicy):
         
     def loglikelihood(self,U):
         self.U = U
-        cost = self.SYS.simulatePolicy(self)[2]
+        cost = self.SYS.simulatePolicy(self)[2].sum()
         return -cost / self.KLWeight
 
     def displaySampleInfo(self,logLik,bestLik,samp,burnIn):
