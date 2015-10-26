@@ -1,5 +1,4 @@
 import SimInterface as SI
-import SimInterface.samplingControl as SC
 import numpy as np
 import matplotlib.pyplot as plt
 
