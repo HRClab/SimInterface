@@ -14,5 +14,6 @@ https://github.com/jobovy/bovy_mcmc
 
 # TODO
 
-- [ ] Move dependency modules to public servers
+- [ ] Make classes with external dependencies load conditionally. 
 - [ ] Enable automated installation in setup.py
+- [ ]
