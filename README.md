@@ -16,4 +16,4 @@ https://github.com/jobovy/bovy_mcmc
 
 - [ ] Make classes with external dependencies load conditionally. 
 - [ ] Enable automated installation in setup.py
-- [ ]
+- [ ] 
