@@ -1,4 +1,5 @@
 import numpy as np
+from functools import partial
 
 class Controller:
     """
@@ -83,5 +84,14 @@ class staticFunction(Controller):
         u = self.func(x)
         return u
 
+class linearlyParametrizedFunction(Controller):
+    def __init__(self,basisFunc=None,theta=None,*args,**kwargs):
+        self.basisFunc = basisFunc
+        self.theta = theta
 
+    def action(self,x,k=None):
+        return np.dot(self.basisFunc(x,k),self.theta)
+
+    def resetParameter(self,theta):
+        self.theta = theta
 
