@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.random as rnd
 import scipy.linalg as la
+import functools as ft
 import Controller as ctrl
 
 #### Basic Stacking Routines ####
@@ -47,17 +48,22 @@ def explorationGain(stateGain,Covariance,Horizon):
         Gain[k,1:,:] = stateGain
         
     return Gain
-class actorCriticLQR(ctrl.staticGain):
+
+class naturalActorCritic(ctrl.parameterizedFunction):
     """
-    Natual Actor Critic method applied to linear quadratic systems. 
-    
+    Natual Actor Critic method applied to general systems.
+
     In particular, This is a variant of Table 1 of 
     "Natural Actor-Critic" by Peters, Vijayakumar, and Schaal
+
+    this requires two function approximator objects
+    policyApproximator
+    costApproximator
     """
     def __init__(self,SYS,
                  EpisodeLength=1,EpisodeCount=1,stepSizeConstant=1.,
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
-                 stateGain=None,Covariance=None,
+                 policyApproximator=None,costApproximator=None,
                  *args,**kwargs):
         p = SYS.NumInputs
         n = SYS.NumStates
@@ -65,15 +71,18 @@ class actorCriticLQR(ctrl.staticGain):
         self.n = n
         self.p = p
 
-        if stateGain is None:
-            stateGain = np.zeros((p,n))
+        if policyParam is None:
+            policyParam = np.zeros(NumPolicyParams)
+        else:
+            NumPolicyParams = len(policyParam)
             
-        if Covariance is None:
-            Covariance = np.eye(n)
-
-
-
-        numFeatures = n*(n+1) + n*p + 1 
+        if costParam is None:
+            costParam = np.zeros(NumCostParams)
+        else:
+            NumCostParams = len(costParam)
+            
+        # Features = control params + covariance upper triangle + cost
+        numFeatures = NumPolicyParams + NumCostParams
 
         # Auxilliary temporal difference variables
         z = np.zeros(numFeatures)
@@ -83,9 +92,16 @@ class actorCriticLQR(ctrl.staticGain):
         x0 = SYS.x0
         #### Actor Critic Learning ####
         for episode in range(EpisodeCount):
-            AffineGain = explorationGain(stateGain,Covariance,EpisodeLength)
-            learningController = ctrl.varyingAffine(AffineGain,
-                                                    Horizon=EpisodeLength)
+            cholCov = la.cholesky(Covariance,lower=True)
+            noiseFuncSpecial = ft.partial(noiseFunc,cholCov=cholCov)
+
+            learningController = noisyPolicy(originalPolicy=self,
+                                             noiseFunction=noiseFuncSpecial,
+                                             Horizon=EpisodeLength)
+            
+            # AffineGain = explorationGain(stateGain,Covariance,EpisodeLength)
+            # learningController = ctrl.varyingAffine(AffineGain,
+            #                                         Horizon=EpisodeLength)
 
             if episode > 0:
                 SYS.x0 = X[-1]

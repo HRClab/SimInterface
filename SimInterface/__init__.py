@@ -41,4 +41,5 @@ from samplingControl import samplingStochasticAffine
 from samplingControl import samplingMPC
 from samplingControl import gibbsOpenLoop
 
-from adaptiveControl import actorCriticLQR
+# from adaptiveControl import actorCriticLQR
+

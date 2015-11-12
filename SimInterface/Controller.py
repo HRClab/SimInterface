@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.random as rnd
 from functools import partial
 
 class Controller:
@@ -84,14 +85,21 @@ class staticFunction(Controller):
         u = self.func(x)
         return u
 
-class linearlyParametrizedFunction(Controller):
-    def __init__(self,basisFunc=None,theta=None,*args,**kwargs):
-        self.basisFunc = basisFunc
-        self.theta = theta
+def affineBasis(x,k=None,NumInputs=1):
+    eye = np.eye(NumInputs)
+    M = np.hstack((eye,np.kron(eye,x)))
+    return M
+
+class parameterizedFunction(Controller):
+    def __init__(self,policyFuncion=None,policyParam=None,*args,**kwargs):
+        self.policyFunction=policyFunction
+        self.policyParam = policyParam
 
     def action(self,x,k=None):
-        return np.dot(self.basisFunc(x,k),self.theta)
+        return self.policyFunction(x,k,self.policyParam)
 
-    def resetParameter(self,theta):
-        self.theta = theta
+    def resetParameter(self,policyParam):
+        self.policyParam = policyParam
 
+
+    
