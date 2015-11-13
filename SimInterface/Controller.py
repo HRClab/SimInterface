@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.random as rnd
-from functools import partial
+import functionApproximator as fa
 
 class Controller:
     """
@@ -103,3 +103,48 @@ class parameterizedFunction(Controller):
 
 
     
+class noisyLinParamFun(Controller):
+    """
+    Inputs of the form:
+    u = B(x,k) beta + C w
+
+    Here B(x,k) is a basis function and beta is a parameter and 
+    C the cholesky factorization of the covariance matrix. 
+
+    The parameters are the entries of beta and C
+    """
+    def __init__(self,basisFunction=None,parameter=None,
+                 NumInputs=1,NumStates=1,
+                 *args,**kwargs):
+
+        # Number of covariance terms
+
+        self.NumInputs = NumInputs
+
+        self.logApproximator = fa.parameterizedLogGaussian(basisFunction=basisFunction,
+                                                           NumU=NumInputs,
+                                                           NumX=NumStates)
+
+        if parameter is None:
+            self.beta = None
+            self.C = None
+        else:
+            self.resetParameter(parameter)
+                                    
+        self.basis = basisFunction    
+
+        Controller.__init__(self,NumInputs=NumInputs,*args,**kwargs)
+
+    def action(x,k):
+        B = self.basis(x,k)
+        uDet = np.dot(B,self.beta)
+        noise = np.dot(self.C,rnd.randn(self.NumInputs))
+        return uDet + noise
+
+    def resetParamter(self,parameter):
+        p = self.NumInputs
+        m = p*(p+1)/2
+        self.beta = parameter[:-m]
+        Cstacked = parameter[-m:]
+        self.C = fa.unstackLower(C)
+        self.logApproximator.resetParameter(parameter)

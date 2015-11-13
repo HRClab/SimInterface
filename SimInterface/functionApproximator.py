@@ -229,8 +229,6 @@ class parameterizedLogGaussian(functionApproximator):
             quadPart = -.5 * np.dot(y,y)
             detPart = -np.log(np.diag(C)).sum()
             constPart = -(NumU/2.) * np.log(2*np.pi)
-
-            print quadPart, detPart, constPart
             
             return quadPart + detPart + constPart
 

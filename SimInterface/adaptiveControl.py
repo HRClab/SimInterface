@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.random as rnd
 import scipy.linalg as la
-import functools as ft
+import functionApproximator as fa
 import Controller as ctrl
 
 #### Basic Stacking Routines ####
@@ -57,13 +57,13 @@ class naturalActorCritic(ctrl.parameterizedFunction):
     "Natural Actor-Critic" by Peters, Vijayakumar, and Schaal
 
     this requires two function approximator objects
-    policyApproximator
-    costApproximator
+    policyApproximator - general differentiable approximator
+    costApproximator - linear approximator
     """
     def __init__(self,SYS,
                  EpisodeLength=1,EpisodeCount=1,stepSizeConstant=1.,
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
-                 policyApproximator=None,costApproximator=None,
+                 policy=None,costApproximator=None,
                  *args,**kwargs):
         p = SYS.NumInputs
         n = SYS.NumStates
@@ -71,13 +71,15 @@ class naturalActorCritic(ctrl.parameterizedFunction):
         self.n = n
         self.p = p
 
-        if policyParam is None:
-            policyParam = np.zeros(NumPolicyParams)
-        else:
-            NumPolicyParams = len(policyParam)
+        policyApproximator = policy.logApproximator
+        NumPolicyParams = policyApproximator.NumParams
+        
+        if policyApproximator.parameter is None:
+            policyApproximator.resetParameter(np.zeros(NumPolicyParams))
             
-        if costParam is None:
-            costParam = np.zeros(NumCostParams)
+        NumCostParams = costApproximator.NumParams
+        if costApproximator is None:
+            costApproximator.resetParameter(np.zeros(NumCostParams))
         else:
             NumCostParams = len(costParam)
             
@@ -92,20 +94,11 @@ class naturalActorCritic(ctrl.parameterizedFunction):
         x0 = SYS.x0
         #### Actor Critic Learning ####
         for episode in range(EpisodeCount):
-            cholCov = la.cholesky(Covariance,lower=True)
-            noiseFuncSpecial = ft.partial(noiseFunc,cholCov=cholCov)
-
-            learningController = noisyPolicy(originalPolicy=self,
-                                             noiseFunction=noiseFuncSpecial,
-                                             Horizon=EpisodeLength)
-            
-            # AffineGain = explorationGain(stateGain,Covariance,EpisodeLength)
-            # learningController = ctrl.varyingAffine(AffineGain,
-            #                                         Horizon=EpisodeLength)
+            policy.Horizon=EpisodeLength
 
             if episode > 0:
                 SYS.x0 = X[-1]
-            X,U,Cost = SYS.simulatePolicy(learningController)
+            X,U,Cost = SYS.simulatePolicy(policy)
             if episode > 0:
                 SYS.x0 = x0
                 
@@ -115,29 +108,18 @@ class naturalActorCritic(ctrl.parameterizedFunction):
             CostFactor = 1.
             for k in range(EpisodeLength-1):
                 TrueCost += CostFactor * Cost[k]
-                CostFactor *= DiscountFactor 
+                CostFactor *= DiscountFactor
 
-                xSquare = np.outer(X[k],X[k])
-                xSquareStacked = stackSymmetricMatrix(xSquare)
+                Z = np.hstack((X[k],U[k]))
+                costGrad = costApproximator.parameterGradient(X[k])
+                policyGrad = policyApproximator.parameterGradient(Z)
 
-                inputResidual = U[k] - np.dot(stateGain,X[k])
-                gainSolve = la.solve(Covariance,inputResidual,sym_pos=True)
-                gainDerivative = np.outer(gainSolve,X[k])
-                gainDerivativeStacked = np.reshape(gainDerivative,n*p)
-
-                invCov = la.inv(Covariance)
-                covDerivative = .5*(np.outer(gainSolve,gainSolve)-invCov)
-                covDerivativeStacked = stackSymmetricMatrix(covDerivative)
-
-                PhiHat = np.hstack((1,xSquareStacked,
-                                    gainDerivativeStacked,
-                                    covDerivativeStacked))
+                PhiHat = np.hstack((costGrad,policyGrad))
 
                 PhiTilde = np.zeros(numFeatures)
-                PhiTilde[0] = 1.
-                nextXSquare = np.outer(X[k+1],X[k+1])
-                nextXSquareStacked = stackSymmetricMatrix(nextXSquare)
-                PhiTilde[1:1+len(xSquareStacked)] = nextXSquareStacked
+                newCostGrad = costApproximator.parameterGradient(X[k+1])
+
+                PhiTilde[:NumCostParams] = newCostGrad
                 
                 z = TraceDecayFactor * z + PhiHat
                 A += np.outer(z,PhiHat-DiscountFactor*PhiTilde)
@@ -146,22 +128,24 @@ class naturalActorCritic(ctrl.parameterizedFunction):
             # Optimal Feature Weights
             featureWeights = la.solve(A,b)
 
-            constCost = featureWeights[0]
-            costMatrixStacked = featureWeights[1:n*(n+1)/2+1]
-            P = unstackSymmetricMatrix(costMatrixStacked)
-            costEst = np.dot(X[0],np.dot(P,X[0])) + constCost
+            costParams = featureWeights[:NumCostParams]
+            policyParams = featureWeights[NumCostParams:]
+
+            
+            costApproximator.resetParameter(costParams)
+
+
+            costEst = costApproximator.value(X[0])
+
             print 'Episode Cost: %g, Estimated Episode Cost: %g' % (TrueCost,
                                                                     costEst)
-                                                                    
 
-            policyGradient = featureWeights[n*(n+1)/2 + 1:]
-
-            Kdiff = np.reshape(policyGradient[:n*p],(p,n))
-            CovDiff = unstackSymmetricMatrix(policyGradient[n*p:])
+            newPolicyParams = policyApproximator.parameter - \
+                              stepSize * policyParams
+            policy.resetParameter(newPolicyParams)
             stepSize = stepSizeConstant / (episode+1)
+            
 
-            stateGain -= stepSize * Kdiff
-            Covariance -= stepSize * CovDiff
 
             # Forget previous influence slightly
             z = ForgettingFactor * z
@@ -169,6 +153,7 @@ class naturalActorCritic(ctrl.parameterizedFunction):
             b = ForgettingFactor * b
 
             # May need to figure out how to get the appropriate gain shape
-            ctrl.staticGain.__init__(self,gain=stateGain.squeeze(),NumInputs=p,
-                                     *args,**kwargs)
+
+            self = policy
+            self.Horizon = Horizon
         
