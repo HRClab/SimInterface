@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.random as rnd
 import scipy.linalg as la
+import functionApproximator as fa
 import Controller as ctrl
 
 #### Basic Stacking Routines ####
@@ -47,33 +48,43 @@ def explorationGain(stateGain,Covariance,Horizon):
         Gain[k,1:,:] = stateGain
         
     return Gain
-class actorCriticLQR(ctrl.staticGain):
+
+class naturalActorCritic(ctrl.noisyLinParamFun):
     """
-    Natual Actor Critic method applied to linear quadratic systems. 
-    
+    Natual Actor Critic method applied to general systems.
+
     In particular, This is a variant of Table 1 of 
     "Natural Actor-Critic" by Peters, Vijayakumar, and Schaal
+
+    this requires two function approximator objects
+    policyApproximator - general differentiable approximator
+    costApproximator - linear approximator
     """
-    def __init__(self,SYS,verbose=False,
+    def __init__(self,SYS,
                  EpisodeLength=1,EpisodeCount=1,stepSizeConstant=1.,
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
-                 stateGain=None,Covariance=None,
+                 policy=None,costApproximator=None,
                  *args,**kwargs):
+
         p = SYS.NumInputs
         n = SYS.NumStates
 
         self.n = n
         self.p = p
 
-        if stateGain is None:
-            stateGain = np.zeros((p,n))
+        policyApproximator = policy.logApproximator
+        NumPolicyParams = policyApproximator.NumParams
+
+        if policyApproximator.parameter is None:
+            policyApproximator.resetParameter(np.zeros(NumPolicyParams))
             
-        if Covariance is None:
-            Covariance = np.eye(n)
+        NumCostParams = costApproximator.NumParams
+        if costApproximator is None:
+            costApproximator.resetParameter(np.zeros(NumCostParams))
 
-
-
-        numFeatures = n*(n+1) + n*p + 1 
+            
+        # Features = control params + covariance upper triangle + cost
+        numFeatures = NumPolicyParams + NumCostParams
 
         # Auxilliary temporal difference variables
         z = np.zeros(numFeatures)
@@ -83,13 +94,11 @@ class actorCriticLQR(ctrl.staticGain):
         x0 = SYS.x0
         #### Actor Critic Learning ####
         for episode in range(EpisodeCount):
-            AffineGain = explorationGain(stateGain,Covariance,EpisodeLength)
-            learningController = ctrl.varyingAffine(AffineGain,
-                                                    Horizon=EpisodeLength)
+            policy.Horizon=EpisodeLength
 
             if episode > 0:
                 SYS.x0 = X[-1]
-            X,U,Cost = SYS.simulatePolicy(learningController)
+            X,U,Cost = SYS.simulatePolicy(policy)
             if episode > 0:
                 SYS.x0 = x0
                 
@@ -99,29 +108,19 @@ class actorCriticLQR(ctrl.staticGain):
             CostFactor = 1.
             for k in range(EpisodeLength-1):
                 TrueCost += CostFactor * Cost[k]
-                CostFactor *= DiscountFactor 
+                CostFactor *= DiscountFactor
 
-                xSquare = np.outer(X[k],X[k])
-                xSquareStacked = stackSymmetricMatrix(xSquare)
+                Z = np.hstack((X[k],U[k]))
+                costGrad = costApproximator.parameterGradient(X[k])
+                policyGrad = policyApproximator.parameterGradient(Z)
 
-                inputResidual = U[k] - np.dot(stateGain,X[k])
-                gainSolve = la.solve(Covariance,inputResidual,sym_pos=True)
-                gainDerivative = np.outer(gainSolve,X[k])
-                gainDerivativeStacked = np.reshape(gainDerivative,n*p)
 
-                invCov = la.inv(Covariance)
-                covDerivative = .5*(np.outer(gainSolve,gainSolve)-invCov)
-                covDerivativeStacked = stackSymmetricMatrix(covDerivative)
-
-                PhiHat = np.hstack((1,xSquareStacked,
-                                    gainDerivativeStacked,
-                                    covDerivativeStacked))
+                PhiHat = np.hstack((costGrad,policyGrad))
 
                 PhiTilde = np.zeros(numFeatures)
-                PhiTilde[0] = 1.
-                nextXSquare = np.outer(X[k+1],X[k+1])
-                nextXSquareStacked = stackSymmetricMatrix(nextXSquare)
-                PhiTilde[1:1+len(xSquareStacked)] = nextXSquareStacked
+                newCostGrad = costApproximator.parameterGradient(X[k+1])
+
+                PhiTilde[:NumCostParams] = newCostGrad
                 
                 z = TraceDecayFactor * z + PhiHat
                 A += np.outer(z,PhiHat-DiscountFactor*PhiTilde)
@@ -130,23 +129,22 @@ class actorCriticLQR(ctrl.staticGain):
             # Optimal Feature Weights
             featureWeights = la.solve(A,b)
 
-            constCost = featureWeights[0]
-            costMatrixStacked = featureWeights[1:n*(n+1)/2+1]
-            P = unstackSymmetricMatrix(costMatrixStacked)
-            costEst = np.dot(X[0],np.dot(P,X[0])) + constCost
-            if verbose:
-                print 'Episode Cost: %g, Estimated Episode Cost: %g' \
-                    % (TrueCost,costEst)
-                                                                    
+            costParams = featureWeights[:NumCostParams]
+            policyParams = featureWeights[NumCostParams:]
 
-            policyGradient = featureWeights[n*(n+1)/2 + 1:]
+            
+            costApproximator.resetParameter(costParams)
 
-            Kdiff = np.reshape(policyGradient[:n*p],(p,n))
-            CovDiff = unstackSymmetricMatrix(policyGradient[n*p:])
+
+            costEst = costApproximator.value(X[0])
+
+            print 'Episode Cost: %g, Estimated Episode Cost: %g' % (TrueCost,
+                                                                    costEst)
+
             stepSize = stepSizeConstant / (episode+1)
-
-            stateGain -= stepSize * Kdiff
-            Covariance -= stepSize * CovDiff
+            newPolicyParams = policyApproximator.parameter - \
+                              stepSize * policyParams
+            policy.resetParameter(newPolicyParams)
 
             # Forget previous influence slightly
             z = ForgettingFactor * z
@@ -154,6 +152,51 @@ class actorCriticLQR(ctrl.staticGain):
             b = ForgettingFactor * b
 
             # May need to figure out how to get the appropriate gain shape
-            ctrl.staticGain.__init__(self,gain=stateGain.squeeze(),NumInputs=p,
-                                     *args,**kwargs)
+
+        ctrl.noisyLinParamFun.__init__(self,
+                                       basisFunction=policy.basis,
+                                       NumInputs=SYS.NumInputs,
+                                       NumStates=SYS.NumStates,
+                                       parameter=policyApproximator.parameter,
+                                       *args,**kwargs)
+                                       
         
+class actorCriticLQR(naturalActorCritic):
+    """
+    Specializeation of the actor critic method to LQR systems. 
+    """
+    def __init__(self,SYS,EpisodeLength=1,
+                 Gain=None,Covariance=None,
+                 *args,**kwargs):
+        NumInputs = SYS.NumInputs
+        NumStates = SYS.NumStates
+
+        policyBasis = fa.createAffineBasisFunction(NumInputs)
+        
+        if Gain is not None:
+            beta = np.reshape(Gain,np.prod(Gain.shape),order='F')
+        else:
+            beta = np.zeros((NumStates+1)*NumInputs)
+        if Covariance is not None:
+            C = la.cholesky(Covariance,lower=True)
+        else:
+            C = np.eye(NumInputs)
+
+        Cs = fa.stackLower(C)
+
+        param = np.hstack((beta,Cs))
+
+        noisyLinearPol = ctrl.noisyLinParamFun(basisFunction=policyBasis,
+                                               NumInputs=NumInputs,
+                                               NumStates=NumStates,
+                                               parameter=np.hstack((beta,Cs)),
+                                               Horizon=EpisodeLength)
+
+        
+        quadCost = fa.parameterizedQuadratic(NumVars=NumStates)
+
+        naturalActorCritic.__init__(self,SYS,
+                                    policy=noisyLinearPol,
+                                    costApproximator=quadCost,
+                                    EpisodeLength=EpisodeLength,
+                                    *args,**kwargs)
