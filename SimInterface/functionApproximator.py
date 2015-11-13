@@ -29,14 +29,14 @@ class functionApproximator:
         self.parameter=parameter
 
 def createAffineBasisFunction(NumOutputs=0):
-    def affineBasis(x,k,theta):
+    def affineBasis(x,k):
         # Put in k because some functions require it
         v = np.hstack((1,x))
         if NumOutputs > 0:
             M = np.kron(v,np.eye(NumOutputs))
         else:
             M = v
-        return np.dot(M,theta)
+        return M
     
     return affineBasis
 

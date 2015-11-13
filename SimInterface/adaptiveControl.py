@@ -49,7 +49,7 @@ def explorationGain(stateGain,Covariance,Horizon):
         
     return Gain
 
-class naturalActorCritic(ctrl.parameterizedFunction):
+class naturalActorCritic(ctrl.noisyLinParamFun):
     """
     Natual Actor Critic method applied to general systems.
 
@@ -65,6 +65,7 @@ class naturalActorCritic(ctrl.parameterizedFunction):
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
                  policy=None,costApproximator=None,
                  *args,**kwargs):
+
         p = SYS.NumInputs
         n = SYS.NumStates
 
@@ -73,15 +74,14 @@ class naturalActorCritic(ctrl.parameterizedFunction):
 
         policyApproximator = policy.logApproximator
         NumPolicyParams = policyApproximator.NumParams
-        
+
         if policyApproximator.parameter is None:
             policyApproximator.resetParameter(np.zeros(NumPolicyParams))
             
         NumCostParams = costApproximator.NumParams
         if costApproximator is None:
             costApproximator.resetParameter(np.zeros(NumCostParams))
-        else:
-            NumCostParams = len(costParam)
+
             
         # Features = control params + covariance upper triangle + cost
         numFeatures = NumPolicyParams + NumCostParams
@@ -114,6 +114,7 @@ class naturalActorCritic(ctrl.parameterizedFunction):
                 costGrad = costApproximator.parameterGradient(X[k])
                 policyGrad = policyApproximator.parameterGradient(Z)
 
+
                 PhiHat = np.hstack((costGrad,policyGrad))
 
                 PhiTilde = np.zeros(numFeatures)
@@ -140,12 +141,10 @@ class naturalActorCritic(ctrl.parameterizedFunction):
             print 'Episode Cost: %g, Estimated Episode Cost: %g' % (TrueCost,
                                                                     costEst)
 
+            stepSize = stepSizeConstant / (episode+1)
             newPolicyParams = policyApproximator.parameter - \
                               stepSize * policyParams
             policy.resetParameter(newPolicyParams)
-            stepSize = stepSizeConstant / (episode+1)
-            
-
 
             # Forget previous influence slightly
             z = ForgettingFactor * z
@@ -154,6 +153,50 @@ class naturalActorCritic(ctrl.parameterizedFunction):
 
             # May need to figure out how to get the appropriate gain shape
 
-            self = policy
-            self.Horizon = Horizon
+        ctrl.noisyLinParamFun.__init__(self,
+                                       basisFunction=policy.basis,
+                                       NumInputs=SYS.NumInputs,
+                                       NumStates=SYS.NumStates,
+                                       parameter=policyApproximator.parameter,
+                                       *args,**kwargs)
+                                       
         
+class actorCriticLQR(naturalActorCritic):
+    """
+    Specializeation of the actor critic method to LQR systems. 
+    """
+    def __init__(self,SYS,EpisodeLength=1,
+                 Gain=None,Covariance=None,
+                 *args,**kwargs):
+        NumInputs = SYS.NumInputs
+        NumStates = SYS.NumStates
+
+        policyBasis = fa.createAffineBasisFunction(NumInputs)
+        
+        if Gain is not None:
+            beta = np.reshape(Gain,np.prod(Gain.shape),order='F')
+        else:
+            beta = np.zeros((NumStates+1)*NumInputs)
+        if Covariance is not None:
+            C = la.cholesky(Covariance,lower=True)
+        else:
+            C = np.eye(NumInputs)
+
+        Cs = fa.stackLower(C)
+
+        param = np.hstack((beta,Cs))
+
+        noisyLinearPol = ctrl.noisyLinParamFun(basisFunction=policyBasis,
+                                               NumInputs=NumInputs,
+                                               NumStates=NumStates,
+                                               parameter=np.hstack((beta,Cs)),
+                                               Horizon=EpisodeLength)
+
+        
+        quadCost = fa.parameterizedQuadratic(NumVars=NumStates)
+
+        naturalActorCritic.__init__(self,SYS,
+                                    policy=noisyLinearPol,
+                                    costApproximator=quadCost,
+                                    EpisodeLength=EpisodeLength,
+                                    *args,**kwargs)

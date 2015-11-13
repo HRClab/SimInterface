@@ -114,16 +114,20 @@ class noisyLinParamFun(Controller):
     The parameters are the entries of beta and C
     """
     def __init__(self,basisFunction=None,parameter=None,
-                 NumInputs=1,NumStates=1,
+                 NumInputs=1,NumStates=1,NumParams=None,
                  *args,**kwargs):
 
         # Number of covariance terms
 
         self.NumInputs = NumInputs
 
+        if NumParams is None:
+            NumParams = len(parameter)
+
         self.logApproximator = fa.parameterizedLogGaussian(basisFunction=basisFunction,
                                                            NumU=NumInputs,
-                                                           NumX=NumStates)
+                                                           NumX=NumStates,
+                                                           NumParams=NumParams)
 
         if parameter is None:
             self.beta = None
@@ -135,16 +139,16 @@ class noisyLinParamFun(Controller):
 
         Controller.__init__(self,NumInputs=NumInputs,*args,**kwargs)
 
-    def action(x,k):
+    def action(self,x,k):
         B = self.basis(x,k)
         uDet = np.dot(B,self.beta)
         noise = np.dot(self.C,rnd.randn(self.NumInputs))
         return uDet + noise
 
-    def resetParamter(self,parameter):
+    def resetParameter(self,parameter):
         p = self.NumInputs
         m = p*(p+1)/2
         self.beta = parameter[:-m]
         Cstacked = parameter[-m:]
-        self.C = fa.unstackLower(C)
+        self.C = fa.unstackLower(Cstacked)
         self.logApproximator.resetParameter(parameter)
