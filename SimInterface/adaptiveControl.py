@@ -91,16 +91,17 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
         A = np.zeros((numFeatures,numFeatures))
         b = np.zeros(numFeatures)
 
-        x0 = SYS.x0
+        x0 = np.array(SYS.x0)
         #### Actor Critic Learning ####
         for episode in range(EpisodeCount):
             policy.Horizon=EpisodeLength
 
             if episode > 0:
-                SYS.x0 = X[-1]
+                SYS.x0 = np.array(X[-1])
             X,U,Cost = SYS.simulatePolicy(policy)
             if episode > 0:
-                SYS.x0 = x0
+                SYS.x0 = np.array(x0)
+
                 
             ### Policy Evaluation by least squares temporal differences ###
 

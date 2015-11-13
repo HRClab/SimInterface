@@ -106,18 +106,25 @@ Controllers = []
 impedance = SI.staticFunction(impedanceCtrlFunc,Horizon=T,label='Impedance')
 mpc = SI.modelPredictiveControl(SYS=sysGenPend,Horizon=T,
                                 predictiveHorizon=10,label='MPC')
-
-iLQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
-                       Horizon=T,label='iLQR')
-
-MPCtoILQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
+impedanceToILQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=2,
                             initialPolicy=impedance,
                             Horizon=T,label='impedance->iLQR')
 
+# Adaptive Controller with Affine + random RBF
+adaptiveLQR = SI.actorCriticLQR(SYS=sysGenPend,Horizon=T,
+                                Covariance=np.eye(sysGenPend.NumInputs),
+                                EpisodeLength=50,EpisodeCount=50,
+                                TraceDecayFactor = .1,
+                                DiscountFactor = .9,
+                                ForgettingFactor = .9,
+                                label='Actor Critic')
+NumBases = 10
+
+
 Controllers.append(impedance)
 Controllers.append(mpc)
-Controllers.append(iLQR)
-Controllers.append(MPCtoILQR)
+Controllers.append(impedanceToILQR)
+Controllers.append(adaptiveLQR)
 
 
 #### Prepare the simulations ####
