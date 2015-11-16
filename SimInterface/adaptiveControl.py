@@ -63,7 +63,7 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
     def __init__(self,SYS,
                  EpisodeLength=1,EpisodeCount=1,stepSizeConstant=1.,
                  TraceDecayFactor=0.,DiscountFactor=1.,ForgettingFactor=1,
-                 policy=None,costApproximator=None,
+                 policy=None,costApproximator=None,reset=False,
                  *args,**kwargs):
 
         p = SYS.NumInputs
@@ -91,16 +91,18 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
         A = np.zeros((numFeatures,numFeatures))
         b = np.zeros(numFeatures)
 
-        x0 = np.array(SYS.x0)
+        x0 = np.array(SYS.x0,copy=True)
         #### Actor Critic Learning ####
         for episode in range(EpisodeCount):
             policy.Horizon=EpisodeLength
 
-            if episode > 0:
-                SYS.x0 = np.array(X[-1])
+            if reset is False:
+                if episode > 0:
+                    SYS.x0 = X[-1]
             X,U,Cost = SYS.simulatePolicy(policy)
-            if episode > 0:
-                SYS.x0 = np.array(x0)
+            if reset is False:
+                if episode > 0:
+                    SYS.x0 = np.array(x0,copy=True)
 
                 
             ### Policy Evaluation by least squares temporal differences ###
@@ -124,28 +126,31 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
                 PhiTilde[:NumCostParams] = newCostGrad
                 
                 z = TraceDecayFactor * z + PhiHat
-                A += np.outer(z,PhiHat-DiscountFactor*PhiTilde)
+                A += -np.outer(z,DiscountFactor*PhiTilde - PhiHat)
                 b += z*Cost[k]
 
-            # Optimal Feature Weights
+
+            # Quadratic learning
             featureWeights = la.solve(A,b)
+            # Linear learning
+            # if episode == 0:
+            #     featureWeights = np.zeros(NumFeatures)
 
             costParams = featureWeights[:NumCostParams]
             policyParams = featureWeights[NumCostParams:]
 
-            
-            costApproximator.resetParameter(costParams)
+            stepSize = stepSizeConstant / (episode+1)
+            newCostParams = costApproximator.parameter + stepSize * costParams
+            newPolicyParams = policyApproximator.parameter - \
+                              stepSize * policyParams
 
+            costApproximator.resetParameter(newCostParams)
+            policy.resetParameter(newPolicyParams)
 
             costEst = costApproximator.value(X[0])
 
-            print 'Episode Cost: %g, Estimated Episode Cost: %g' % (TrueCost,
-                                                                    costEst)
+            print 'Episode Cost: %g, Estimated Episode Cost: %g, Undiscounted Cost: %g' % (TrueCost,costEst,Cost.sum())
 
-            stepSize = stepSizeConstant / (episode+1)
-            newPolicyParams = policyApproximator.parameter - \
-                              stepSize * policyParams
-            policy.resetParameter(newPolicyParams)
 
             # Forget previous influence slightly
             z = ForgettingFactor * z
@@ -193,8 +198,12 @@ class actorCriticLQR(naturalActorCritic):
                                                parameter=np.hstack((beta,Cs)),
                                                Horizon=EpisodeLength)
 
-        
-        quadCost = fa.parameterizedQuadratic(NumVars=NumStates)
+
+        n = NumStates
+        numCostParams = (n+1)*(n+2)/2
+        costParam = np.zeros(numCostParams)
+        quadCost = fa.parameterizedQuadratic(NumVars=NumStates,
+                                             parameter=costParam)
 
         naturalActorCritic.__init__(self,SYS,
                                     policy=noisyLinearPol,
