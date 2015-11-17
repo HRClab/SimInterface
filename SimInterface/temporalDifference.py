@@ -5,12 +5,12 @@ import scipy.linalg as la
 class temporalDifferenceLearner:
     def __init__(self,approximator=None,
                  discountFactor=1.,eligibilityVector=None,
-                 traceDecayFactor=0.,stepSizeConstant=1.,
+                 traceDecayFactor=0.,stepSize=None,
                  label=''):
 
         self.label=label
         self.approximator=approximator
-        self.stepSizeConstant = stepSizeConstant
+        self.stepSize=stepSize
         self.stepNumber = 1
 
         if eligibilityVector is None:
@@ -25,11 +25,8 @@ class temporalDifferenceLearner:
         newVal =  val + self.discountFactor * self.approximator.value(xNew)
         self.d = newVal - self.approximator.value(x)
 
-    def stepSize(self):
-        return self.stepSizeConstant / self.stepNumber
-
     def updateParameter(self):
-        stepSize = self.stepSize()
+        stepSize = self.stepSize(self.stepNumber)
         newParam = self.approximator.parameter + \
                    stepSize * self.d * self.z
         self.approximator.resetParameter(newParam)
