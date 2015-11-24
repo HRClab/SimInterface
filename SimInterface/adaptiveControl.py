@@ -106,7 +106,7 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
 
                 
             ### Policy Evaluation by least squares temporal differences ###
-
+            ### This should be changed to use any policy evaluation method ###
             TrueCost = 0.
             CostFactor = 1.
             for k in range(EpisodeLength-1):
