@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as rnd
 import scipy.linalg as la
 import functionApproximator as fa
-import Controller as ctrl
+import parameterizedFunction as pf
 
 #### Basic Stacking Routines ####
 
@@ -49,7 +49,7 @@ def explorationGain(stateGain,Covariance,Horizon):
         
     return Gain
 
-class naturalActorCritic(ctrl.noisyLinParamFun):
+class naturalActorCritic(pf.noisyLinParamFun):
     """
     Natual Actor Critic method applied to general systems.
 
@@ -153,12 +153,12 @@ class naturalActorCritic(ctrl.noisyLinParamFun):
 
             # May need to figure out how to get the appropriate gain shape
 
-        ctrl.noisyLinParamFun.__init__(self,
-                                       basisFunction=policy.basis,
-                                       NumInputs=SYS.NumInputs,
-                                       NumStates=SYS.NumStates,
-                                       parameter=policyApproximator.parameter,
-                                       *args,**kwargs)
+        pf.noisyLinParamFun.__init__(self,
+                                     basisFunction=policy.basis,
+                                     NumInputs=SYS.NumInputs,
+                                     NumStates=SYS.NumStates,
+                                     parameter=policyApproximator.parameter,
+                                     *args,**kwargs)
                                        
         
 class actorCriticLQR(naturalActorCritic):
@@ -186,11 +186,11 @@ class actorCriticLQR(naturalActorCritic):
 
         param = np.hstack((beta,Cs))
 
-        noisyLinearPol = ctrl.noisyLinParamFun(basisFunction=policyBasis,
-                                               NumInputs=NumInputs,
-                                               NumStates=NumStates,
-                                               parameter=np.hstack((beta,Cs)),
-                                               Horizon=EpisodeLength)
+        noisyLinearPol = pf.noisyLinParamFun(basisFunction=policyBasis,
+                                             NumInputs=NumInputs,
+                                             NumStates=NumStates,
+                                             parameter=np.hstack((beta,Cs)),
+                                             Horizon=EpisodeLength)
 
         
         quadCost = fa.parameterizedQuadratic(NumVars=NumStates)

@@ -17,4 +17,11 @@ https://github.com/jobovy/bovy_mcmc
 - [ ] Make classes with external dependencies load conditionally. 
 - [ ] Enable automated installation in setup.py
 - [ ] UPDATE THE DOCUMENTATION
-- [ ] Make linearQuadraticSystem a subclass of smoothDifferentialEquation
+- [ ] Generalize class rbfNetwork to allow for vector functions (see createRBFbasis)
+- [ ] Put in an x gradient in the general functionApproximator class
+- [ ] Update existing function approximator classes to have their x gradients
+- [ ] A notebook on how to use the function approximators, and detail their capabilities.
+- [ ] Merge in varying function
+- [ ] Make parameterized function a subclass of varying function
+- [ ] Put parameterized function into a different file
+  
