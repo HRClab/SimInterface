@@ -15,13 +15,7 @@ Oh hey! This is the documentation for the SimInterface, a Python package for sim
 	      
    SimInterface
 
-.. graphviz::
-
-   digraph foo {
-      "bar" -> "baz";
-   }
-   
-.. inheritance-diagram:: SimInterface.MarkovDecisionProcess SimInterface.LagrangianSystem
+.. inheritance-diagram:: SimInterface.MarkovDecisionProcess
    :parts: 1
 
 .. inheritance-diagram:: SimInterface.Controller SimInterface.adaptiveControl SimInterface.linearQuadraticControl SimInterface.parameterizedFunction
