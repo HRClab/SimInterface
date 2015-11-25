@@ -1,6 +1,6 @@
-#### This script defines class MarkovDecisionProcess
-#### We want these code to work with time-invariant, time-varying,
-#### deterministic and stochastic processes
+"""
+This is the most general system class
+"""
 
 import numpy as np
 from numpy.random import randn

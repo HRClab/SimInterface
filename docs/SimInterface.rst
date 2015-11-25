@@ -1,11 +1,10 @@
 SimInterface package
 ====================
 
+MarkovDecisionProcess 
+-----------------------------------------
 
-Controller
-------------------------------
-
-.. automodule:: SimInterface.Controller
+.. automodule:: SimInterface.MarkovDecisionProcess
     :members:
     :undoc-members:
     :show-inheritance:
@@ -18,10 +17,11 @@ LagrangianSystem
     :undoc-members:
     :show-inheritance:
 
-MarkovDecisionProcess 
------------------------------------------
 
-.. automodule:: SimInterface.MarkovDecisionProcess
+Controller
+------------------------------
+
+.. automodule:: SimInterface.Controller
     :members:
     :undoc-members:
     :show-inheritance:
