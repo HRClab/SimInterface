@@ -1,7 +1,7 @@
 import sympy as sym
 import numpy as np
 from scipy.linalg import solve, inv
-import sympy_utils as su
+import utils.sympy_utils as su
 
 EULER = 0
 SYMPLECTIC = 1
