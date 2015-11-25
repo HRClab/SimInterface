@@ -2,9 +2,6 @@ SimInterface package
 ====================
 
 
-Submodules
-----------
-
 Controller
 ------------------------------
 
@@ -29,15 +26,8 @@ MarkovDecisionProcess
     :undoc-members:
     :show-inheritance:
 
-NewtonEulerSystem 
--------------------------------------
 
-.. automodule:: SimInterface.NewtonEulerSystem
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-SimInterface.adaptiveControl module
+adaptiveControl
 -----------------------------------
 
 .. automodule:: SimInterface.adaptiveControl
@@ -45,7 +35,7 @@ SimInterface.adaptiveControl module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.functionApproximator module
+functionApproximator
 ----------------------------------------
 
 .. automodule:: SimInterface.functionApproximator
@@ -53,7 +43,7 @@ SimInterface.functionApproximator module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.linearQuadraticControl module
+linearQuadraticControl 
 ------------------------------------------
 
 .. automodule:: SimInterface.linearQuadraticControl
@@ -61,7 +51,7 @@ SimInterface.linearQuadraticControl module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.linearQuadraticSystem module
+linearQuadraticSystem 
 -----------------------------------------
 
 .. automodule:: SimInterface.linearQuadraticSystem
@@ -69,7 +59,7 @@ SimInterface.linearQuadraticSystem module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.parameterizedFunction module
+parameterizedFunction
 -----------------------------------------
 
 .. automodule:: SimInterface.parameterizedFunction
@@ -77,7 +67,7 @@ SimInterface.parameterizedFunction module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.pylagrange module
+pylagrange 
 ------------------------------
 
 .. automodule:: SimInterface.pylagrange
@@ -85,13 +75,6 @@ SimInterface.pylagrange module
     :undoc-members:
     :show-inheritance:
 
-SimInterface.samplingControl module
------------------------------------
-
-.. automodule:: SimInterface.samplingControl
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Subpackages
 -----------
