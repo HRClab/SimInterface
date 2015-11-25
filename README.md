@@ -1,6 +1,11 @@
+# Documentation
+
+Link to documentation as soon as it renders properly!
+
 # What is SimInterface?
 
 It is a python-based simulation environment. Currently, it is primarily geared to testing optimal control algorithms. The scope will increase with time.
+
 
 Its main aims are:
 
