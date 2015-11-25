@@ -4,7 +4,7 @@
 
 import numpy as np
 from numpy.random import randn
-import numpy_utils as nu
+import utils.numpy_utils as nu
 from copy import deepcopy
 
 class MarkovDecisionProcess:
