@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from setuptools import setup
 
+# This is a bit spurious, as it does not explicilty have a scipy dependence
 setup(name='SimInterface',
       version='0.1',
       description='Simulation package of optimal control problems',
