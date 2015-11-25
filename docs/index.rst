@@ -3,10 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SimInterface's documentation!
+SimInterface Documentation
 ========================================
 
-Oh hey! This is the documentation for the SimInterface, a Python package for simulation and control. 
+Oh hey! This is the documentation for the SimInterface, a Python package for simulation and control. The package, and its documentation, are very much "Work in Progress", so this will likely change drastically on a regular basis. 
 
 .. toctree::
    :maxdepth: 4
