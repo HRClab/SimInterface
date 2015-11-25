@@ -1,3 +1,6 @@
+"""
+This is the base module for all controllers. 
+"""
 import numpy as np
 
 class Controller:
