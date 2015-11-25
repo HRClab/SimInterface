@@ -6,12 +6,21 @@
 Welcome to SimInterface's documentation!
 ========================================
 
-Contents:
+Oh hey! This is the documentation for the SimInterface, a Python package for simulation and control. 
 
 .. toctree::
    :maxdepth: 4
 
+
+	      
    SimInterface
+
+.. inheritance-diagram:: SimInterface.MarkovDecisionProcess SimInterface.LagrangianSystem
+   :parts: 1
+
+.. inheritance-diagram:: SimInterface.Controller SimInterface.adaptiveControl SimInterface.linearQuadraticControl SimInterface.parameterizedFunction
+   :parts: 1
+
 
 
 Indices and tables
