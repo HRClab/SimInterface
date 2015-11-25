@@ -28,8 +28,6 @@ class functionApproximator:
     def resetParameter(self,parameter):
         self.parameter=parameter
 
-    # Create a state gradient method. 
-
 def createAffineBasisFunction(NumOutputs=0):
     def affineBasis(x,k):
         # Put in k because some functions require it
@@ -49,8 +47,6 @@ def stackedSymmetricBasis(n):
     For a symmetric matrix nxn , M, this returns a matrix B such that 
     
     np.reshape(M,n*n,order='F') == np.dot(B, stackLower(M))
-
-    'F' stands for Fortran order. 
     """
     B = np.zeros((n*n,n*(n+1)/2))
 

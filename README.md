@@ -1,16 +1,32 @@
-# PyOptiCon
+# Documentation
 
-Code for rapidly developing simulations and control schemes
+For the details of the algorithms, see the [Documentation](http://siminterface.readthedocs.org/en/latest/)
 
-# Dependencies
+# What is SimInterface?
 
-* Scipy stack
-* bovy_mcmc - for sampling - 
-https://github.com/jobovy/bovy_mcmc
-* pylagrange https://github.umn.edu/HRCLab/pylagrange
-* pyNewEuler https://github.umn.edu/HRCLab/pyNewEuler
-* sympy_utils https://github.umn.edu/HRCLab/sympy_utils
-* pyuquat https://github.umn.edu/HRCLab/pyuquat
+It is a python-based simulation environment. Currently, it is primarily geared to testing optimal control algorithms. The scope will increase with time.
+
+
+Its main aims are:
+
+* [Object Oriented Design](#object)
+* [Portable Controllers](#portable)
+
+# <a name="object"></a> Object Oriented Design
+
+## Encapsulate System and Controller Data
+Plants and controllers are objects. Plant objects should encapsulate
+all information required for simulation and control
+design. Controller design methods can take plant objects as inputs.  
+
+## Inheritance
+Designing new plant types and controller methods based on existing
+schemes simplifies. 
+
+# <a name="portable"></a> Portable Controllers
+Controllers are be designed to work for every plant in a class. The
+syntax for controller becomes quite simple.
+
 
 # TODO
 
@@ -24,4 +40,3 @@ https://github.com/jobovy/bovy_mcmc
 - [ ] Merge in varying function
 - [ ] Make parameterized function a subclass of varying function
 - [ ] Put parameterized function into a different file
-  

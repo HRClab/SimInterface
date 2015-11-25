@@ -16,6 +16,13 @@ import sys
 import os
 import shlex
 
+import mock
+ 
+MOCK_MODULES = ['numpy','numpy.random',
+                'scipy', 'sympy', 'scipy.linalg']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -34,7 +41,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'sphinx.ext.graphviz',
-    'sphinx.ext.inheritance_diagram'
+    'sphinx.ext.inheritance_diagram',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -53,8 +60,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'SimInterface'
-copyright = u'2015, Author'
-author = u'Author'
+copyright = u'2015, Andrew Lamperski'
+author = u'Andrew Lamperski'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

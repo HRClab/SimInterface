@@ -4,8 +4,6 @@ These are some utilities to make sympy easier to use
 
 import sympy as sym
 import numpy as np
-import dill
-dill.settings['recurse'] = True
 
 def cast_as_array(x):
     if isinstance(x,np.ndarray):
@@ -125,39 +123,6 @@ def functify(expr, args):
 
     return foo
     
-def sympy_save(expr, args, name):
-    """
-    This first calls functify to create a function:
-    name = functify(expr,args)
-
-    so that the expression can be evaluated as 
-    expr = name(args).
-
-    It then saves the function (by pickling) to a file name+'.p'
-    """
-
-    func = functify(expr,args)
-    
-
-    # Pickle the function
-    # this stores the calculation as a function in binary format
-    fid = open(name+'.p','wb')
-    dill.dump(func,fid)
-    fid.close()
-
-def sympy_load(name):
-    """
-    func = sympy_load(name)
-
-    returns the function that was created by the call
-    sympy_save(expr,args,name)
-    """
-    # load the pickled function
-    fid = open(name+'.p','rb')
-    func = dill.load(fid)
-    fid.close()
-    
-    return func
 
 
 

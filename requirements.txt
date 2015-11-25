@@ -1,0 +1,4 @@
+mock>=1.0.1
+numpy>=1.9
+sympy>=0.7.6
+scipy>=0.13.0

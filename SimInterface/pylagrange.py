@@ -1,9 +1,7 @@
 import sympy as sym
 import numpy as np
 from scipy.linalg import solve, inv
-import sympy_utils as su
-import dill
-dill.settings['recurse'] = True
+import utils.sympy_utils as su
 
 EULER = 0
 SYMPLECTIC = 1
@@ -135,26 +133,3 @@ class lagrangian_system:
         g = xdot
         return (A,B,g)
     
-def save(SYS,name):
-    """
-    Saves a lagrangian system to a binary file.
-
-    The file will be called name+'.p'
-    """
-    fid = open(name+'.p','wb')
-    dill.dump(SYS,fid)
-    fid.close()
-
-
-def load(name):
-    """
-    func = pylagrange.load(name)
-
-    This loads a system file saved using pylagrange.save
-    """
-    fid = open(name+'.p','rb')
-    func = dill.load(fid)
-    fid.close()
-    
-    return func
-

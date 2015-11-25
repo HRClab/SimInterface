@@ -2,9 +2,9 @@
 
 from MarkovDecisionProcess import MarkovDecisionProcess
 from MarkovDecisionProcess import differentialEquation
-from MarkovDecisionProcess import smoothDiffEq
 from MarkovDecisionProcess import driftDiffusion
 from MarkovDecisionProcess import deterministicSubsystem
+from MarkovDecisionProcess import smoothDiffEq
 
 # Import Input augmenter
 from MarkovDecisionProcess import augmentInput
@@ -21,7 +21,7 @@ from linearQuadraticSystem import buildCostMatrix
 from LagrangianSystem import LagrangianSystem
 from LagrangianSystem import inputAugmentedLagrangian
 
-
+# Import basic control stuff
 from Controller import openLoopPolicy
 from Controller import flatOpenLoopPolicy
 from Controller import staticGain
