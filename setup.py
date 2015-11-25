@@ -8,7 +8,7 @@ setup(name='SimInterface',
       author=['Andy Lamperski','Bolei Di'],
       author_email=['alampers@umn.edu','dixxx047@umn.edu'],
       packages = ['SimInterface'],
-      install_requires=['numpy','sympy'],
+      install_requires=['numpy','sympy','scipy'],
       )
       
      
