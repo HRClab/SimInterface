@@ -1,4 +1,4 @@
-SimInterface Modules
+System Modules
 ====================
 
 MarkovDecisionProcess 
@@ -9,6 +9,16 @@ MarkovDecisionProcess
     :undoc-members:
     :show-inheritance:
 
+
+linearQuadraticSystem 
+-----------------------------------------
+
+.. automodule:: SimInterface.linearQuadraticSystem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 LagrangianSystem
 ------------------------------------
 
@@ -17,28 +27,13 @@ LagrangianSystem
     :undoc-members:
     :show-inheritance:
 
+Controller Modules
+====================
 
 Controller
 ------------------------------
 
 .. automodule:: SimInterface.Controller
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-adaptiveControl
------------------------------------
-
-.. automodule:: SimInterface.adaptiveControl
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-functionApproximator
-----------------------------------------
-
-.. automodule:: SimInterface.functionApproximator
     :members:
     :undoc-members:
     :show-inheritance:
@@ -51,13 +46,25 @@ linearQuadraticControl
     :undoc-members:
     :show-inheritance:
 
-linearQuadraticSystem 
------------------------------------------
+adaptiveControl
+-----------------------------------
 
-.. automodule:: SimInterface.linearQuadraticSystem
+.. automodule:: SimInterface.adaptiveControl
     :members:
     :undoc-members:
     :show-inheritance:
+
+Helpers
+========
+
+functionApproximator
+----------------------------------------
+
+.. automodule:: SimInterface.functionApproximator
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 parameterizedFunction
 -----------------------------------------

@@ -10,8 +10,6 @@ Oh hey! This is the documentation for the SimInterface, a Python package for sim
 
 .. toctree::
    :maxdepth: 4
-
-
 	      
    SimInterface
 
