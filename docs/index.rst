@@ -15,7 +15,7 @@ Oh hey! This is the documentation for the SimInterface, a Python package for sim
 	      
    SimInterface
 
-.. inheritance-diagram:: SimInterface.MarkovDecisionProcess
+.. inheritance-diagram:: SimInterface.MarkovDecisionProcess SimInterface.LagrangianSystem
    :parts: 1
 
 .. inheritance-diagram:: SimInterface.Controller SimInterface.adaptiveControl SimInterface.linearQuadraticControl SimInterface.parameterizedFunction
