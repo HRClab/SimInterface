@@ -21,8 +21,6 @@ from linearQuadraticSystem import buildCostMatrix
 from LagrangianSystem import LagrangianSystem
 from LagrangianSystem import inputAugmentedLagrangian
 
-# Import Newton Euler System
-from NewtonEulerSystem import NewtonEulerSys
 
 from Controller import openLoopPolicy
 from Controller import flatOpenLoopPolicy
@@ -35,11 +33,6 @@ from linearQuadraticControl import linearQuadraticRegulator
 from linearQuadraticControl import modelPredictiveControl
 from linearQuadraticControl import iterativeLQR
 from linearQuadraticControl import approximateLQR
-
-from samplingControl import samplingOpenLoop
-from samplingControl import samplingStochasticAffine
-from samplingControl import samplingMPC
-from samplingControl import gibbsOpenLoop
 
 from adaptiveControl import naturalActorCritic
 from adaptiveControl import actorCriticLQR
