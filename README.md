@@ -1,6 +1,6 @@
 # Documentation
 
-Link to documentation as soon as it renders properly!
+For the details of the algorithms, see the [Documentation](http://siminterface.readthedocs.org/en/latest/)
 
 # What is SimInterface?
 
