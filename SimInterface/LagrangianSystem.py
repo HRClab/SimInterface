@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import eig
 import utils.sympy_utils as su
-import numpy_utils as nu
+import utils.numpy_utils as nu
 import pylagrange as lag
 
 import MarkovDecisionProcess as MDP

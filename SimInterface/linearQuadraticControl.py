@@ -105,9 +105,11 @@ class iterativeLQR(ctrl.varyingAffine):
 
         X,U,initCost = SYS.simulatePolicy(initialPolicy)
 
+        initCost = initCost.sum()
+        
         gainShape = (self.Horizon, SYS.NumInputs, SYS.NumStates+1)
 
-        bestCost = initCost.sum()
+        bestCost = initCost
         bestGain = np.zeros(gainShape)
         for k in range(self.Horizon):
             bestGain[k,:,0] = U[k]

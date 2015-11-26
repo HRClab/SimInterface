@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import randn
 from scipy.linalg import eigh
-import numpy_utils as nu
+import utils.numpy_utils as nu
 import MarkovDecisionProcess as MDP
 
 #### Helper functions for Linear Quadratic Systems ####
