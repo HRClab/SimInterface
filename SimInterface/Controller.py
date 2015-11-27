@@ -1,5 +1,7 @@
 """
-This is the base module for all controllers. 
+Controller objects are used to apply inputs to System objects.
+
+Controllers could be Function objects or the could be System objects. 
 """
 import numpy as np
 

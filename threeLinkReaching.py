@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 import sympy as sym
 import SimInterface.utils.sympy_utils as su
 import SimInterface.functionApproximator as fa
+import SimInterface.parameterizedFunction as pf
 
 #### Define the system ####
 
@@ -138,14 +139,14 @@ covParam = fa.stackLower(CovChol)
 noisyParam = np.hstack((linParam,rbfParam,covParam))
 
 
-noisyPolicy = SI.Controller.noisyLinParamFun(basisFunction=mixedBasis,
+noisyPolicy = pf.noisyLinParamFun(basisFunction=mixedBasis,
                                              NumInputs=sysGenPend.NumInputs,
                                              NumStates=sysGenPend.NumStates,
                                              parameter=noisyParam,
                                              Horizon=T)
 
 n = sysGenPend.NumStates
-NumCostParams = (n+1)(n+2)/2
+NumCostParams = (n+1)*(n+2)/2
 costParam = np.zeros(NumCostParams)
 quadCost = fa.parameterizedQuadratic(NumVars=sysGenPend.NumStates,
                                      parameter=costParam)
