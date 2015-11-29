@@ -11,8 +11,8 @@ The spaces are given by:
 
 The mappings are given by:
 
-* X x U -> X: x' = f(x,u)
-* X x U -> Y: y = g(x,u)
+* :math:`x' = f(x,u)`
+* :math:`y = g(x,u)`
 
 In general the mappings could be deterministic, random, uncertain, etc. It would be sufficient, however, to assume everything is deterministic, and to assume that randomness enters as explicit inputs. 
 
@@ -75,10 +75,22 @@ Definitely need to figure out how to use RST for
 
 """
 
+import Variable as Var
+import Function as Fun
 
 class System:
-    def __init__(self):
-        pass
+    def __init__(self,StateFunction=None,OutputFunction=None,
+                 stateVars=None,inputVars=None):
+        if isinstance(StateFunction,Fun.Function):
+            self.StateFunction = StateFunction
+        else:
+            self.StateFunction = Fun.Function(StateFunction,
+                                              (stateVars,inputVars))
+        if isinstance(OutputFunction,Fun.Function):
+            self.OutputFunction = OutputFunction
+        else:
+            self.OutputFunction = Fun.Function(OutputFunction,
+                                               (stateVars,outputVars))
 
     def connect(self):
         pass
