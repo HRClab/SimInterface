@@ -5,8 +5,9 @@ Variable
 """
 
 import numpy as np
+import pandas as pd
 
-class Variable:
+class Variable(pd.DataFrame):
     """
     This is a variable
 
@@ -21,6 +22,7 @@ class Variable:
     def __init__(self,label='Var',value=0.0):
         self.label = label
         self.value = value
+        
 
     def __str__(self):
         return self.label
