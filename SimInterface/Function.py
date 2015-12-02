@@ -25,7 +25,6 @@ It is true that the functions that we use will all be functions in the classical
 
 import pandas as pd
 import numpy as np
-
 try:
     import graphviz as gv
     graphviz = True
@@ -44,15 +43,13 @@ class Function:
         self.label = label
 
         if isinstance(InputVars,tuple):
-            InputData = pd.concat([v.data for v in InputVars],
-                                  axis=1,
-                                  join='inner')
             self.InputVars = InputVars
         else:
-            InputData = InputVars.data
             self.InputVars = (InputVars,)
 
-        self.InputData = InputData
+
+        self.setInputData()
+        
         for v in self.InputVars:
             v.Child = self
 
@@ -78,6 +75,7 @@ class Function:
             InputNodes = [IV.label for IV in InputVars]
         else:
             InputNodes = [InputVars.label]
+            
 
         if isinstance(OutputVars,tuple):
             OutputNodes = [OV.label for OV in OutputVars]
@@ -100,14 +98,18 @@ class Function:
             self.graph = dot
 
     def __func__(self,iv):
-        ov = self.func(*(iv[v] for v in self.InputNodes))
+        ov = self.func(*(iv[v.label] for v in self.InputVars))
         return pd.Series(list(np.hstack(ov)),
                          index=self.OutputData.columns)
-
-    def viewNetwork(self):
-        self.graph.view()
-        
+    def setInputData(self):
+        self.InputData = pd.concat([v.data for v in self.InputVars],
+                                   axis=1,
+                                   join='inner')
     def apply(self):
-        self.OutputData = self.InputData.apply(self.__func__,axis=1)
+        self.setInputData()
+        values = self.InputData.apply(self.__func__,axis=1)
+        self.OutputData = pd.DataFrame(values,columns=self.OutputData.columns)
+        groups = self.OutputData.groupby(level=0,axis=1)
         for ov in self.OutputVars:
-            ov.data = self.OutputData[ov.label]
+            originalColumns = ov.data.columns
+            ov.data = groups.get_group(ov.label)
