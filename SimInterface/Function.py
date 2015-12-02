@@ -23,28 +23,91 @@ It is true that the functions that we use will all be functions in the classical
   - For automatically identifying the relevant state space for feedback systems
 """
 
-import Variable as Var
+import pandas as pd
+import numpy as np
+
+try:
+    import graphviz as gv
+    graphviz = True
+except ImportError:
+    graphviz = False
+    
 
 class Function:
     """
     This is the basic Function class
 
     Parameters 
-        TimeVarying : bool (optional)
-            Specify if time-varying or time-invariant  
-            Default: `True`
-
-        TimeDomain : str {'continuous', 'discrete'}, optional 
-            Specify if continuous or discrete time, or neither
-
-        TimeSpan : array_like (optional)
-            An array of time points where the function is defined. 
-
     """
-    def __init__(self,func=None,vars=None):
+    def __init__(self,func=None,InputVars=None,OutputVars=None,label='Fun'):
         self.func = func
-        self.vars = vars
+        self.label = label
 
-    def getValue(self):
-        # Need a way to accomodate multiple variables here.
-        return self.func(self.vars.getValue())
+        if isinstance(InputVars,tuple):
+            InputData = pd.concat([v.data for v in InputVars],
+                                  axis=1,
+                                  join='inner')
+            self.InputVars = InputVars
+        else:
+            InputData = InputVars.data
+            self.InputVars = (InputVars,)
+
+        self.InputData = InputData
+        for v in self.InputVars:
+            v.Child = self
+
+        if isinstance(OutputVars,tuple):
+            OutputData = pd.concat([v.data for v in OutputVars],
+                                    axis=1,
+                                    join='inner')
+            self.OutputVars = OutputVars
+        else:
+            OutputData = OutputVars.data
+            self.OutputVars = (OutputVars,)
+
+            
+        self.OutputData = OutputData
+        for v in self.OutputVars:
+            v.Parent = self
+        
+
+        self.__createGraph__(InputVars,OutputVars,label)
+
+    def __createGraph__(self,InputVars,OutputVars,label):
+        if isinstance(InputVars,tuple):
+            InputNodes = [IV.label for IV in InputVars]
+        else:
+            InputNodes = [InputVars.label]
+
+        if isinstance(OutputVars,tuple):
+            OutputNodes = [OV.label for OV in OutputVars]
+        else:
+            OutputNodes = [OutputVars.label]
+
+        if graphviz:
+            dot = gv.Digraph(name=label)
+
+            dot.node(label,shape='box')
+            
+            for IN in InputNodes:
+                dot.node(IN,label='',shape='plaintext')
+                dot.edge(IN,label,label=IN)
+
+            for ON in OutputNodes:
+                dot.node(ON,label='',shape='plaintext')
+                dot.edge(label,ON,label=ON)
+
+            self.graph = dot
+
+    def __func__(self,iv):
+        ov = self.func(*(iv[v] for v in self.InputNodes))
+        return pd.Series(list(np.hstack(ov)),
+                         index=self.OutputData.columns)
+
+    def viewNetwork(self):
+        self.graph.view()
+        
+    def apply(self):
+        self.OutputData = self.InputData.apply(self.__func__,axis=1)
+        for ov in self.OutputVars:
+            ov.data = self.OutputData[ov.label]

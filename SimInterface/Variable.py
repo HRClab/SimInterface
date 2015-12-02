@@ -7,7 +7,7 @@ Variable
 import numpy as np
 import pandas as pd
 
-class Variable(pd.DataFrame):
+class Variable:
     """
     This is a variable
 
@@ -19,56 +19,55 @@ class Variable(pd.DataFrame):
 
     """
 
-    def __init__(self,label='Var',value=0.0):
+    def __init__(self,label='Var',data=None,shape=None):
+        """
+
+        """
+
+        self.__createDataFrame__(label,data,shape)
+        
         self.label = label
-        self.value = value
-        
+        self.Parent = None
+        self.Child = None
 
-    def __str__(self):
-        return self.label
-
-    def setValue(self,Val):
-        self.value = Val
-
-    def getValue(self):
-        return self.value
-    
-class VarArray(np.ndarray):
-    def __new__(cls,label='Var',shape=(1,),value=None):
-
-        if value is not None:
-            shape = value.shape
-            
-        varInd = np.arange(np.prod(shape))
-        varBuf = np.zeros(shape,dtype=object)
-        valStr = np.zeros(shape,dtype=object)
-        for ind in varInd:
-            sub = np.unravel_index(ind,shape)
-            varLabel = label+"_".join(str(num) for num in sub)
-            valStr[sub] = varLabel
-            var = Variable(label=varLabel)
-            varBuf[sub] = var
-
-        obj = np.ndarray.__new__(cls,shape,buffer=varBuf,dtype=object)
-        obj.str = valStr.__str__()
-
-        if value is None:
-            obj.value = np.zeros(shape)
+    def __createDataFrame__(self,label,data,shape):
+        """
+        An internal function to create a pandas DataFrame object 
+        """
+        if shape is None:
+            # Scalar
+            columns = label
         else:
-            obj.value = value
-        return obj
+            NumEl = np.prod(shape)
+            indices = range(NumEl)
+            subscriptTuples = np.unravel_index(indices,shape)
+            subscriptList = [np.tile(label,NumEl)]
+            subscriptList.extend(subscriptTuples)
+            columns = pd.MultiIndex.from_arrays(subscriptList)
 
-    def __array_finalize__(self, obj):
-        pass
+        if data is None:
+            if shape is None:
+                dataMat = 0.0
+            else:
+                dataMat = np.zeros((1,NumEl))
+        elif data.shape == shape:
+            dataMat = np.array([data.flatten()])
+        elif data.shape == (NumEl,):
+            dataMat = np.array([data])
+        elif data.shape == (1,NumEl):
+            dataMat = np.array(data,copy=True)
+        elif np.prod(data.shape) > NumEl:
+            if data.shape[1:] == (NumEl,):
+                dataMat = np.array(data,copy=True)
+            elif data.shape[1:] == shape:
+                dataMat = np.reshape(data,(len(data),NumEl))
+                
 
-    def __str__(self):
-        return self.str
-
-    def setValue(self,Val):
-        self.value = Val
+        self.data = pd.DataFrame(dataMat,columns=columns)
         
 
-    def getValue(self):
-        return self.value
+    def __getitem__(self,item):
+        return self.data[item]
+
+
         
-    
