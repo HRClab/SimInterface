@@ -3,6 +3,7 @@
 from Variable import Variable
 from Function import Function
 from System import System
+from System import DifferentialEquation
 from Network import Network
 
 # Import basic system types. 

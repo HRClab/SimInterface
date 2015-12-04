@@ -73,7 +73,15 @@ Definitely need to figure out how to use RST for
 * Latex
 * Headings
 
+
 """
+
+try:
+    import graphviz as gv
+    graphviz = True
+except ImportError:
+    graphviz = False
+
 
 import Variable as Var
 import Function as Fun
@@ -94,3 +102,46 @@ class System:
 
     def connect(self):
         pass
+
+class DifferentialEquation:
+    def __init__(self,func=None,StateVars=None,InputVars=None,label=None):
+        self.__createGraph__(StateVars,InputVars,label)
+
+    def __createGraph__(self,StateVars,InputVars,label):
+        if graphviz:
+
+            dot = gv.Digraph(name=label)
+
+            dot.node(label,shape='box')
+            
+            if isinstance(InputVars,tuple):
+                InputNodes = [IV.label for IV in InputVars]
+            elif InputVars is not None:
+                InputNodes = [InputVars.label]
+
+            if InputVars is not None:
+                for IN in InputNodes:
+                    dot.node(IN,label='',shape='plaintext')
+                    dot.edge(IN,label,label=IN)
+
+
+            if isinstance(StateVars,tuple):
+                OutputNodes = [OV.label for OV in StateVars]
+            else:
+                OutputNodes = [StateVars.label]
+
+            for ON in OutputNodes:
+                dot.node(ON,label='',shape='plaintext')
+                dot.edge(label,ON,label=ON)
+
+            dot.node('integrator',shape='box')
+
+            DerivativeLabels = ['d%s/dt' % ON for ON in OutputNodes]
+            DLabel = ','.join(DerivativeLabels)
+
+            SLabel = ','.join(OutputNodes)
+
+            dot.edge(label,'integrator',label=DLabel)
+            dot.edge('integrator',label,label=SLabel)
+                
+            self.graph = dot
