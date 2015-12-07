@@ -7,6 +7,9 @@ Variable
 import numpy as np
 import pandas as pd
 
+class Parameter:
+    def __init__(self):
+        pass
 class Signal:
     """
     This is a variable
