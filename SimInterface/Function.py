@@ -68,34 +68,6 @@ class Function:
 
         self.Vars = set(self.InputVars) | set(self.OutputVars)
 
-        self.__createGraph__(InputVars,OutputVars,label)
-
-    def __createGraph__(self,InputVars,OutputVars,label):
-        if isinstance(InputVars,tuple):
-            InputNodes = [IV.label for IV in InputVars]
-        else:
-            InputNodes = [InputVars.label]
-            
-
-        if isinstance(OutputVars,tuple):
-            OutputNodes = [OV.label for OV in OutputVars]
-        else:
-            OutputNodes = [OutputVars.label]
-
-        if graphviz:
-            dot = gv.Digraph(name=label)
-
-            dot.node(label,shape='box')
-            
-            for IN in InputNodes:
-                dot.node(IN,label='',shape='plaintext')
-                dot.edge(IN,label,label=IN)
-
-            for ON in OutputNodes:
-                dot.node(ON,label='',shape='plaintext')
-                dot.edge(label,ON,label=ON)
-
-            self.graph = dot
 
     def __func__(self,iv):
         ov = self.func(*(iv[v.label] for v in self.InputVars))
