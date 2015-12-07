@@ -1,7 +1,7 @@
 #
 from Variable import Signal
 from Function import StaticFunction
-from System import DifferentialEquation
+from Function import DifferentialEquation
 from System import System
 from Network import Network
 
