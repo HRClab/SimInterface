@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 class Parameter:
-    def __init__(self):
+    def __init__(self,label='Var',data=None,shape=None):
         pass
 class Signal:
     """
@@ -27,13 +27,13 @@ class Signal:
 
         """
 
-        self.__createDataFrame__(label,data,shape)
+        self.__createDataFrame(label,data,shape)
         
         self.label = label
         self.Source = None
         self.Targets = []
 
-    def __createDataFrame__(self,label,data,shape):
+    def __createDataFrame(self,label,data,shape):
         """
         An internal function to create a pandas DataFrame object 
         """
