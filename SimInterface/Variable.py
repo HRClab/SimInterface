@@ -8,64 +8,60 @@ import numpy as np
 import pandas as pd
 
 class Variable:
-    def __init__(self,label='Var',data=None,shape=None,TimeStamps=None):
-        self.__createDataFrame(label,data,shape,TimeStamps)
+    def __init__(self,label='Var',data=None,TimeStamp=None):
+        self.__createDataFrame(label,data,TimeStamp)
         
         self.label = label
         self.Source = None
         self.Targets = []
 
-    def __createDataFrame(self,label,data,shape,TimeStamps):
+    def __createDataFrame(self,label,data,TimeStamp):
         """
         An internal function to create a pandas DataFrame object 
         """
-        if shape is None:
-            # Scalar
-            columns = [label]
-        else:
-            NumEl = np.prod(shape)
+        
+        shape = data.shape[1:]
+            
+        NumEl = np.size(shape)
+        if NumEl > 0:
+            # Not Scalar
             indices = range(NumEl)
             subscriptTuples = np.unravel_index(indices,shape)
             subscriptList = [np.tile(label,NumEl)]
             subscriptList.extend(subscriptTuples)
             columns = pd.MultiIndex.from_arrays(subscriptList)
+        else:
+            columns = [label]
 
-        if data is None:
-            if shape is None:
-                dataMat = 0.0
-            else:
-                dataMat = np.zeros((1,NumEl))
-        elif not isinstance(data,np.ndarray):
-            # Scalar input
-            dataMat = np.array([[data]])
-        elif data.shape == shape:
-            dataMat = np.array([data.flatten()])
-        elif data.shape == (NumEl,):
-            dataMat = np.array([data])
-        elif data.shape == (1,NumEl):
-            dataMat = np.array(data,copy=True)
-        elif np.prod(data.shape) > NumEl:
-            if data.shape[1:] == (NumEl,):
-                dataMat = np.array(data,copy=True)
-            elif data.shape[1:] == shape:
-                dataMat = np.reshape(data,(len(data),NumEl))
-                
 
-        T,n = dataMat.shape
-        if TimeStamps is None:
-            TimeStamps = np.arange(T)
-
+        if len(shape) == 1:
+            # Already have a table
+            dataMat = data
+        else:
+            dataMat = np.reshape(data,(len(data),np.prod(shape)))
+        
         self.data = pd.DataFrame(dataMat,
                                  columns=columns,
-                                 index=TimeStamps[:T])
+                                 index=TimeStamp)
         
 
     def __getitem__(self,item):
         return self.data[item]
 
 class Parameter(Variable):
-    def __init__(self,label='Var',data=None,shape=None):
-        Variable.__init__(self,label,data,shape)
+    def __init__(self,label='Par',data=None,shape=None):
+        # Assume that either data or shape is not none
+        if data is None:
+            data = np.zeros(shape)
+
+        # Cast a scalar to an array
+        if not isinstance(data,np.ndarray):
+            data = np.array([data])
+
+        # Create a time-stamp
+        TimeStamp = np.array([0])
+        
+        Variable.__init__(self,label,data,TimeStamp)
     
 class Signal(Variable):
     """
@@ -79,11 +75,26 @@ class Signal(Variable):
 
     """
 
-    def __init__(self,label='Var',data=None,shape=None,TimeStamps=None):
+    def __init__(self,label='Sig',data=None,shape=None,TimeStamp=None):
         """
 
         """
 
-        Variable.__init__(self,label,data,shape,TimeStamps)
+        # Assume data or shape is not none
+        # shape is the dimensions of the data at each time step
+        if data is None:
+            data = np.zeros((1,)+shape)
+
+        elif not isinstance(data,np.ndarray):
+            data = np.array([data])
+            
+        # Now assume that the first index is is for time
+        if TimeStamp is None:
+            TimeStamp = np.arange(len(data))
+
+        if len(TimeStamp) < len(data):
+            print 'Not enough time stamps'        
+        
+        Variable.__init__(self,label,data,TimeStamp[:len(data)])
 
         
