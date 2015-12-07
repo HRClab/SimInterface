@@ -84,7 +84,7 @@ except ImportError:
 
 import pandas as pd
 import numpy as np
-from collections import deque
+import collections as col
 import Variable as Var
 import Function as Fun
 
@@ -95,6 +95,16 @@ def castToTuple(Vars):
         return Vars
     else:
         return (Vars,)
+
+def castToSet(S):
+    if isinstance(S,set):
+        return S
+    elif isinstance(S,col.Iterable):
+        return set(S)
+    elif S is None:
+        return set()
+    else:
+        return set([S])
     
 
 class System:
@@ -103,15 +113,28 @@ class System:
     StateFunc, and OutputFuncs to simply be function objects, so that
     the variables would just inherit.
     """
-    def __init__(self,StateFuncs= tuple(),OutputFuncs= tuple(),
-                 label=''):
+    def __init__(self,Funcs=set(),label=''):
+        self.label=label
+        self.__buildSystem(Funcs)
+            
 
-        self.StateFuncs = castToTuple(StateFuncs)
-        self.OutputFuncs = castToTuple(OutputFuncs)
-        self.Funcs = set(self.StateFuncs) | set(self.OutputFuncs)
+    def add(self,func):
+        Funcs = self.Funcs | set([func])
+        self.__buildSystem(Funcs)
 
+    def update(self,NewFuncs):
+        NewFuncSet = castToSet(NewFuncs)
+        Funcs = self.Funcs | NewFuncSet
+        self.__buildSystem(Funcs)
+        
+    def __buildSystem(self,Funcs):
+        self.Funcs = castToSet(Funcs)
+        print self.Funcs
+        
         # Get all the variables
-        self.Vars = reduce(lambda a,b : a|b, [f.Vars for f in self.Funcs])
+        self.Vars = reduce(lambda a,b : a|b,
+                           [f.Vars for f in self.Funcs],
+                           set())
         
         # Build a dictionary from functions to inputs
         self.funcToInputs = {f : f.InputVars for f in self.Funcs}
@@ -121,7 +144,7 @@ class System:
         # We will now build an execution order for the output functions 
         Parents = dict()
         Children = dict()
-        Executable = deque()
+        Executable = col.deque()
         self.ExecutionOrder = []
 
         for f in self.Funcs:
@@ -150,12 +173,20 @@ class System:
                 if len(Parents[child]) == 0:
                     Executable.append(child)
 
-        self.label=label
         
-        self.__createGraph__()
-                
+        self.__createGraph()
 
-    def __createGraph__(self):
+    def __createGraph(self):
+        """
+        Create a graph using the graphviz module.
+
+        It may be advisable to make this a bit more separated. 
+
+        Namely, make a separate add-on that you pass the system to and it
+        would produce a graph. 
+
+        Basically make a separate submodule called "SystemGraph"
+        """
         if not graphviz:
             return
         
