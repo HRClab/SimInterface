@@ -13,7 +13,7 @@ class Variable:
         
         self.label = label
         self.Source = None
-        self.Targets = []
+        self.Targets = set()
 
     def __createDataFrame(self,label,data,TimeStamp):
         """
@@ -22,9 +22,9 @@ class Variable:
         
         shape = data.shape[1:]
             
-        NumEl = np.size(shape)
-        if NumEl > 0:
+        if len(shape) > 0:
             # Not Scalar
+            NumEl = np.prod(shape)
             indices = range(NumEl)
             subscriptTuples = np.unravel_index(indices,shape)
             subscriptList = [np.tile(label,NumEl)]
@@ -39,7 +39,7 @@ class Variable:
             dataMat = data
         else:
             dataMat = np.reshape(data,(len(data),np.prod(shape)))
-        
+
         self.data = pd.DataFrame(dataMat,
                                  columns=columns,
                                  index=TimeStamp)
@@ -84,17 +84,18 @@ class Signal(Variable):
         # shape is the dimensions of the data at each time step
         if data is None:
             data = np.zeros((1,)+shape)
-
         elif not isinstance(data,np.ndarray):
             data = np.array([data])
             
         # Now assume that the first index is is for time
         if TimeStamp is None:
             TimeStamp = np.arange(len(data))
+        elif not isinstance(TimeStamp,np.ndarray):
+            TimeStamp = np.array([TimeStamp])
 
         if len(TimeStamp) < len(data):
             print 'Not enough time stamps'        
-        
+
         Variable.__init__(self,label,data,TimeStamp[:len(data)])
 
         
