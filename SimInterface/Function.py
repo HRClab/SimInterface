@@ -51,7 +51,7 @@ class Function:
         self.setInputData()
         
         for v in self.InputVars:
-            v.Child = self
+            v.Targets.append(self)
 
         if isinstance(OutputVars,tuple):
             OutputData = pd.concat([v.data for v in OutputVars],
@@ -61,12 +61,12 @@ class Function:
         else:
             OutputData = OutputVars.data
             self.OutputVars = (OutputVars,)
-
             
         self.OutputData = OutputData
         for v in self.OutputVars:
-            v.Parent = self
-        
+            v.Source = self
+
+        self.Vars = set(self.InputVars) | set(self.OutputVars)
 
         self.__createGraph__(InputVars,OutputVars,label)
 
@@ -101,6 +101,7 @@ class Function:
         ov = self.func(*(iv[v.label] for v in self.InputVars))
         return pd.Series(list(np.hstack(ov)),
                          index=self.OutputData.columns)
+    
     def setInputData(self):
         self.InputData = pd.concat([v.data for v in self.InputVars],
                                    axis=1,

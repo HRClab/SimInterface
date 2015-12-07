@@ -7,7 +7,7 @@ Variable
 import numpy as np
 import pandas as pd
 
-class Variable:
+class Signal:
     """
     This is a variable
 
@@ -27,8 +27,8 @@ class Variable:
         self.__createDataFrame__(label,data,shape)
         
         self.label = label
-        self.Parent = None
-        self.Child = None
+        self.Source = None
+        self.Targets = []
 
     def __createDataFrame__(self,label,data,shape):
         """

@@ -82,30 +82,173 @@ try:
 except ImportError:
     graphviz = False
 
-
+import pandas as pd
+import numpy as np
+from collections import deque
 import Variable as Var
 import Function as Fun
 
+def castToTuple(Vars):
+    if Vars is None:
+        return tuple()
+    elif isinstance(Vars,tuple):
+        return Vars
+    else:
+        return (Vars,)
+    
+
 class System:
-    def __init__(self,StateFunction=None,OutputFunction=None,
-                 stateVars=None,inputVars=None):
-        if isinstance(StateFunction,Fun.Function):
-            self.StateFunction = StateFunction
-        else:
-            self.StateFunction = Fun.Function(StateFunction,
-                                              (stateVars,inputVars))
-        if isinstance(OutputFunction,Fun.Function):
-            self.OutputFunction = OutputFunction
-        else:
-            self.OutputFunction = Fun.Function(OutputFunction,
-                                               (stateVars,outputVars))
+    """
+    I think a better solution would be obtained by just forcing
+    StateFunc, and OutputFuncs to simply be function objects, so that
+    the variables would just inherit.
+    """
+    def __init__(self,StateFuncs= tuple(),OutputFuncs= tuple(),
+                 label=''):
 
-    def connect(self):
-        pass
+        self.StateFuncs = castToTuple(StateFuncs)
+        self.OutputFuncs = castToTuple(OutputFuncs)
+        self.Funcs = set(self.StateFuncs) | set(self.OutputFuncs)
 
+        # Get all the variables
+        self.Vars = reduce(lambda a,b : a|b, [f.Vars for f in self.Funcs])
+        
+        # Build a dictionary from functions to inputs
+        self.funcToInputs = {f : f.InputVars for f in self.Funcs}
+        # Also need a dictionary from functions to outputs
+        self.funcToOutputs = {f : f.OutputVars for f in self.Funcs}
+
+        # We will now build an execution order for the output functions 
+        Parents = dict()
+        Children = dict()
+        Executable = deque()
+        self.ExecutionOrder = []
+
+        for f in self.Funcs:
+            Parents[f] = set(v.Source for v in f.InputVars) & self.Vars
+            if len(Parents[f]) == 0:
+                # If a function has no parents it is executable immediately
+                Executable.append(f)
+
+            if f in Parents[f]:
+                # Figure out how to make an error statement here.
+                print 'Not well-posed, function depends on itself'
+                
+        # # For convencience we also construct the inverse dictionary
+        # # For each function, the set of functions that it is used to produce
+        Children = {f : set() for f in self.Funcs}
+        for f in self.Funcs:
+            for g in Children[f]:
+                Children[g].union(set(f))
+
+        # Now finally we create the execution order
+        while len(Executable) > 0:
+            f = Executable.pop()
+            self.ExecutionOrder.append(f)
+            for child in Children[f]:
+                Parents[child].remove(f)
+                if len(Parents[child]) == 0:
+                    Executable.append(child)
+
+        self.label=label
+        
+        self.__createGraph__()
+                
+
+    def __createGraph__(self):
+        if not graphviz:
+            return
+        
+        dot = gv.Digraph(name=self.label)
+
+        for f in self.Funcs:
+            dot.node(f.label,shape='box')
+
+        for v in self.Vars:
+            if v.Source not in self.Funcs:
+                dot.node(v.label,label='',shape='plaintext')
+                for tar in (set(v.Targets) & self.Funcs):
+                    dot.edge(v.label,tar.label,label=v.label)
+
+            else:
+                for tar in (set(v.Targets) & self.Funcs):
+                    dot.edge(v.Source.label,tar.label,label=v.label)
+
+            if len(set(v.Targets) & self.Funcs) == 0:
+                dot.node(v.label,label='',shape='plaintext')
+                if v.Source in self.Funcs:
+                    dot.edge(v.Source.label,v.label,label=v.label)
+
+        self.graph = dot
+        
 class DifferentialEquation:
-    def __init__(self,func=None,StateVars=None,InputVars=None,label=None):
+    def __init__(self,func=None,StateVars=None,InputVars=None,
+                 Time=None,label=None):
+
+        # First create input dataFrame
+        if InputVars is None:
+            InputData is None
+        elif not isinstance(InputVars,tuple):
+            self.InputVars = (InputVars,)
+            InputData = InputVars.data
+        else:
+            self.InputVars = InputVars
+            InputData = pd.concat([v.data for v in InputVars],
+                                  axis=1,
+                                  join='inner')
+
+        # Check if there is exogenous input
+
+        # Need to rework this. 
+        if (Time is not None) and (InputData is not None):
+            InputData.index = Time[:len(InputData)]
+
+            
+        self.InputData = InputData
+
+        if not isinstance(StateVars,tuple):
+            self.StateVars = (StateVars,)
+        else:
+            self.StateVars = StateVars
+            
+        StateData = pd.concat([v.data for v in self.StateVars],
+                              axis=1,
+                              join='inner')
+
+        self.StateData = StateData
+
+        self.StateGroups = StateData.groupby(level=0,axis=1)
+        
         self.__createGraph__(StateVars,InputVars,label)
+
+
+    def vectorField(self,t,x):
+        """
+        With what we have, how could we get it done?
+
+        * Build a state variable dataframe
+
+            * This fixes the order of the variables
+
+            * Find out what the lengths are of each to map back
+
+        * Build an input variable dataframe
+
+        * Timestamp the rows.
+        
+        """
+
+        Dimensions = [0]
+        Dimensions.extend([v.data.shape[1] for v in self.StateVars])
+        IndexBounds = np.cumsum(Dimensions)
+        StateList = [x[i:j] for i,j in zip(IndexBounds[:-1],IndexBounds[1:])]
+
+        if self.InputData is not None:
+            TimeIndex = np.argwhere(self.InputData.index < t)[-1,0]
+            print TimeIndex
+            InputList = [self.InputData.iloc[TimeIndex][v.label] for \
+                         v in self.InputVars]
+            
 
     def __createGraph__(self,StateVars,InputVars,label):
         if graphviz:
