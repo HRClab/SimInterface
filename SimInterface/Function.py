@@ -32,7 +32,7 @@ except ImportError:
     graphviz = False
     
 
-class Function:
+class StaticFunction:
     """
     This is the basic Function class
 

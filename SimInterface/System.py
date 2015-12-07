@@ -129,7 +129,6 @@ class System:
         
     def __buildSystem(self,Funcs):
         self.Funcs = castToSet(Funcs)
-        print self.Funcs
         
         # Get all the variables
         self.Vars = reduce(lambda a,b : a|b,
