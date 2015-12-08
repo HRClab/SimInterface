@@ -86,7 +86,7 @@ import pandas as pd
 import numpy as np
 import collections as col
 import Variable as Var
-import Function as Fun
+import inspect as ins
 
 def castToTuple(Vars):
     if Vars is None:
@@ -135,10 +135,6 @@ class System:
                            [f.Vars for f in self.Funcs],
                            set())
         
-        # Build a dictionary from functions to inputs
-        self.funcToInputs = {f : f.InputVars for f in self.Funcs}
-        # Also need a dictionary from functions to outputs
-        self.funcToOutputs = {f : f.OutputVars for f in self.Funcs}
 
         # We will now build an execution order for the output functions 
         Parents = dict()
@@ -148,8 +144,9 @@ class System:
 
         for f in self.Funcs:
             Parents[f] = set(v.Source for v in f.InputVars) & self.Vars
-            if len(Parents[f]) == 0:
+            if (len(Parents[f]) == 0) and (isinstance(f,StaticFunction)):
                 # If a function has no parents it is executable immediately
+                # Only put static functions in the execution order
                 Executable.append(f)
 
             if f in Parents[f]:
@@ -169,11 +166,139 @@ class System:
             self.ExecutionOrder.append(f)
             for child in Children[f]:
                 Parents[child].remove(f)
-                if len(Parents[child]) == 0:
+                if (len(Parents[child]) == 0) and \
+                   (isinstance(child,StaticFunction)):
                     Executable.append(child)
 
-        
         self.__createGraph()
+
+        # Build a dictionary from labels to current values
+        self.labelToValue = {v.label : np.array(v.data.iloc[0]) \
+                             for v in self.Vars}
+                             
+        # Not sure if these are needed
+        # Build a dictionary from functions to inputs
+        self.funcToInputs = {f : f.InputVars for f in self.Funcs}
+        # Also need a dictionary from functions to outputs
+        self.funcToOutputs = {f : f.OutputVars for f in self.Funcs}
+
+        ##### Things needed for Vector Field ######
+        self.StateFuncs = [f for f in self.Funcs if len(f.StateVars)>0]
+        self.funcToState = {f : f.StateVars for f in self.Funcs}
+
+        StateVarSet = reduce(lambda a,b : a|b,
+                             [f.StateVars for f in self.Funcs],
+                             set())
+        self.StateVars = list(StateVarSet)
+
+        self.stateToFunc = {v : [] for v in self.StateVars}
+
+        for f in self.StateFuncs:
+            for v in f.StateVars:
+                self.stateToFunc[v].append(f)
+
+        # Create auxilliary states for exogenous signals
+        self.InputSignals = [v for v in self.Vars if \
+                             (v.Source not in self.Funcs) and \
+                             (isinstance(v,Var.Signal))]
+
+        self.IndexSlopes = []
+        for v in self.InputSignals:
+            slopeList = np.zeros(len(v.data.index))
+            slopeList[:-1] = 1./np.diff(v.data.index)
+            self.IndexSlopes.append(slopeList)
+            
+        ##### Initial Condition for ODE Integration ######
+        Dimensions = [0]
+        Dimensions.extend([v.data.shape[1] for v in self.StateVars])
+        self.StateIndexBounds = np.cumsum(Dimensions)
+
+        NumStates = len(self.StateVars)
+        self.InitialState = np.zeros(self.StateIndexBounds[-1] + \
+                                     len(self.InputSignals))
+        for k in range(NumStates):
+            InitVal = np.array(self.StateVars[k].data.iloc[0])
+            indLow,indHigh = self.StateIndexBounds[k:k+2]
+            self.InitialState[indLow:indHigh] = InitVal
+            
+        
+    def UpdateState(self,Time=[],State=[]):
+        for k in range(len(self.StateVars)):
+            v = self.StateVars[k]
+            # Probably better to just use a set method here
+            # but this will work as long as the method for
+            # initializing data does not change
+            indLow,indHigh = self.StateIndexBounds[k:k+2]
+            v.data = pd.DataFrame(State[:,indLow:indHigh],
+                                  columns=v.data.columns,
+                                  index=Time)
+
+    def VectorField(self,Time,State):
+        """
+        Something suitable for passing to ODE methods.
+        """
+
+        State_dot = np.zeros(len(State))
+
+        # Update the state values
+        ## Split the states into a list
+        NumStates = len(self.StateVars)
+
+        for k in range(NumStates):
+            v = self.StateVars[k]
+            indLow,indHigh = self.StateIndexBounds[k:k+2]
+            curVal = State[indLow:indHigh]
+            self.labelToValue[v.label] = curVal
+        
+        # Compute the exogenous inputs 
+        ##  The index states
+        NumIndexStates = len(self.InputSignals)
+        IndexStateList = State[-NumIndexStates:]
+
+        IndexSlopes = np.zeros(NumIndexStates)
+        
+        for k in range(NumIndexStates):
+            ctsIndex = IndexStateList[k]
+            curInd = int(np.floor(ctsIndex))
+            nextInd = curInd+1
+
+            IndexSlopes[k] = self.IndexSlopes[k][curInd]
+
+            v = self.InputSignals[k]
+            # Linearly interpolate exogenous inputs
+            # Presumably this could help smoothness.
+            # and it is not very hard. 
+            prevInput = v.data.iloc[curInd]
+            nextInput = v.data.iloc[nextInd]
+            lam = IndexStateList[k] - curInd
+            # this can be called later.
+            inputVal = (1-lam) * prevInput + lam * nextInput
+            self.labelToValue[v.label] = np.array(inputVal)
+
+        ## Plug in the derivative of the index slopes. 
+        State_dot[-NumIndexStates:] = IndexSlopes
+    
+        # Apply the static functions in the appropriate order 
+        ## Handle this once we actually have a static function.
+        ## This will involve updating self.labelToValue
+        
+        # Apply the vector fields
+
+        ## Compute vector field        
+        for k in range(NumStates):
+            v = self.StateVars[k]
+            dvdt = np.zeros(v.data.shape[1])
+            for f in self.stateToFunc[v]:
+                argList = ins.getargspec(f.func)[0]
+                # Need to map labels to variables
+                # and then map variables to current values
+                valList = [self.labelToValue[lab] for lab in argList]
+                dvdt += f.func(*valList)
+
+            indLow,indHigh = self.StateIndexBounds[k:k+2]
+            State_dot[indLow:indHigh] = dvdt
+
+        return State_dot
 
     def __createGraph(self):
         """
@@ -210,6 +335,8 @@ class System:
                     dot.edge(v.Source.label,v.label,label=v.label)
 
         self.graph = dot
+
+        
 
 class Function(System):
     def __init__(self,func=lambda : None,label='Fun',
@@ -260,9 +387,6 @@ class DifferentialEquation(System):
         Integrator = Function(label='Integrator',
                               InputVars=OutputVars,
                               OutputVars=StateVars)
-
-        self.VectorField = VectorField
-        self.Integrator = Integrator
 
         System.__init__(self,
                         Funcs=set([VectorField,Integrator]),label=label)
