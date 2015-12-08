@@ -204,8 +204,7 @@ class System:
 
         self.IndexSlopes = []
         for v in self.InputSignals:
-            slopeList = np.zeros(len(v.data.index))
-            slopeList[:-1] = 1./np.diff(v.data.index)
+            slopeList = 1./np.diff(v.data.index)
             self.IndexSlopes.append(slopeList)
             
         ##### Initial Condition for ODE Integration ######
@@ -262,18 +261,24 @@ class System:
             curInd = int(np.floor(ctsIndex))
             nextInd = curInd+1
 
-            IndexSlopes[k] = self.IndexSlopes[k][curInd]
+            if nextInd < len(self.IndexSlopes[k]):
+                # Not too near end
+                IndexSlopes[k] = self.IndexSlopes[k][curInd]
 
-            v = self.InputSignals[k]
-            # Linearly interpolate exogenous inputs
-            # Presumably this could help smoothness.
-            # and it is not very hard. 
-            prevInput = v.data.iloc[curInd]
-            nextInput = v.data.iloc[nextInd]
-            lam = IndexStateList[k] - curInd
-            # this can be called later.
-            inputVal = (1-lam) * prevInput + lam * nextInput
-            self.labelToValue[v.label] = np.array(inputVal)
+                v = self.InputSignals[k]
+                # Linearly interpolate exogenous inputs
+                # Presumably this could help smoothness.
+                # and it is not very hard. 
+                prevInput = v.data.iloc[curInd]
+                nextInput = v.data.iloc[nextInd]
+                lam = IndexStateList[k] - curInd
+                # this can be called later.
+                inputVal = (1-lam) * prevInput + lam * nextInput
+                self.labelToValue[v.label] = np.array(inputVal)
+            else:
+                # If out of bounds just stay at the last value.
+                IndexSlopes[k] = 0.
+                self.labelToValue[v.label] = np.array(v.data.iloc[-1])
 
         ## Plug in the derivative of the index slopes. 
         State_dot[-NumIndexStates:] = IndexSlopes
