@@ -1,10 +1,9 @@
 #
 from Variable import Signal
 from Variable import Parameter
-from Function import StaticFunction
+from System import StaticFunction
 from System import DifferentialEquation
 from System import System
-from Network import Network
 
 # Import basic system types. 
 

@@ -210,33 +210,59 @@ class System:
                     dot.edge(v.Source.label,v.label,label=v.label)
 
         self.graph = dot
-        
 
-class DifferentialEquation:
+class Function(System):
+    def __init__(self,func=lambda : None,label='Fun',
+                 StateVars = set(), InputVars = set(), OutputVars = set()):
+
+        self.func = func
+        self.label = label
+        StateVarSet = castToSet(StateVars)
+        InputVarSet = castToSet(InputVars)
+        OutputVarSet = castToSet(OutputVars)
+
+        self.StateVars = StateVarSet
+        self.InputVars = InputVarSet
+        self.OutputVars = OutputVarSet
+
+        self.Vars = StateVarSet | InputVarSet | OutputVarSet
+
+        map(lambda v : v.Targets.add(self),StateVarSet | InputVarSet)
+        for v in OutputVarSet:
+            v.Source = self
+
+class StaticFunction(Function):
+    def __init__(self,func=None,InputVars=None,OutputVars=None,label='Fun'):
+        Function.__init__(func=func,label=label,
+                          InputVars=InputVars,OutputVars=OutputVars)
+        
+class DifferentialEquation(System):
     def __init__(self,func=None,StateVars=None,InputVars=None,
                  Time=None,label='DiffEq'):
-
-        self.label = label
-        # Split the variables between parameters and signals.
-
-        InputVarSet = castToSet(InputVars)
-        StateVarSet = castToSet(StateVars)
-        Vars = VarSet | StateVarSet
-
-        self.InputVars = InputVarSet
-
-        # The current function is a target of all of both the
-        # input variables and the state variables
-        map(lambda v : v.Targets.add(self),[v for v in Vars])
-
         
-        # Now define a dummy signal for the time derivative
-
-        self.OutputVars = set()
+        # Dummy signals for the time derivatives
+        # These "outputs" are fed into a dummy integrator function
+        
+        OutputVars = set()
+        StateVarSet = castToSet(StateVars)
+        
         for v in StateVarSet:
             dvdt = Var.Signal(label='d%s/dt' % v.label,
                               data=np.zeros((1,v.data.shape[1])),
                               TimeStamp=np.zeros(1))
-            self.OutputVars.add(v)
+            OutputVars.add(dvdt)
 
-        
+        VectorField = Function(func=func,label=label,
+                               InputVars=InputVars,
+                               OutputVars=OutputVars,
+                               StateVars=StateVars)
+
+        Integrator = Function(label='Integrator',
+                              InputVars=OutputVars,
+                              OutputVars=StateVars)
+
+        self.VectorField = VectorField
+        self.Integrator = Integrator
+
+        System.__init__(self,
+                        Funcs=set([VectorField,Integrator]),label=label)
