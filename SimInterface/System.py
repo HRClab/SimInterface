@@ -170,8 +170,6 @@ class System:
                    (isinstance(child,StaticFunction)):
                     Executable.append(child)
 
-        self.__createGraph()
-
         # Build a dictionary from labels to current values
         self.labelToValue = {v.label : np.array(v.data.iloc[0]) \
                              for v in self.Vars}
@@ -220,6 +218,7 @@ class System:
             indLow,indHigh = self.StateIndexBounds[k:k+2]
             self.InitialState[indLow:indHigh] = InitVal
             
+        self.__createGraph()
         
     def UpdateState(self,Time=[],State=[]):
         for k in range(len(self.StateVars)):
@@ -321,24 +320,36 @@ class System:
         
         dot = gv.Digraph(name=self.label)
 
-        for f in self.Funcs:
+        # Ignore the integrators
+        NonIntegrators = set([f for f in self.Funcs if f.ftype != 'integrator'])
+
+        for f in NonIntegrators:
             dot.node(f.label,shape='box')
 
+        # Handle state vars and nonstate vars separately
+        StateVars = set(self.StateVars)
+        NonState = self.Vars - StateVars
         for v in self.Vars:
-            if v.Source not in self.Funcs:
-                dot.node(v.label,label='',shape='plaintext')
-                for tar in (set(v.Targets) & self.Funcs):
-                    dot.edge(v.label,tar.label,label=v.label)
+            if (v.Source not in NonIntegrators) and (v in NonState):
+                dot.node(v.label,shape='plaintext')
+                for tar in (set(v.Targets) & NonIntegrators):
+                    dot.edge(v.label,tar.label)
 
             else:
-                for tar in (set(v.Targets) & self.Funcs):
-                    dot.edge(v.Source.label,tar.label,label=v.label)
+                for tar in (set(v.Targets) & NonIntegrators):
+                    if v.Source in NonIntegrators:
+                        dot.edge(v.Source.label,tar.label,label=v.label)
 
             if len(set(v.Targets) & self.Funcs) == 0:
-                dot.node(v.label,label='',shape='plaintext')
-                if v.Source in self.Funcs:
-                    dot.edge(v.Source.label,v.label,label=v.label)
+                dot.node(v.label)
+                if v.Source in NonIntegrators:
+                    dot.edge(v.Source.label,v.label)
 
+        # Special handling for states
+        for v in StateVars:
+            for f in self.stateToFunc[v]:
+                for g in (v.Targets & NonIntegrators):
+                    dot.edge(f.label,g.label,label=v.label)
         self.graph = dot
 
 def Connect(Systems=set(),label='Sys'):
@@ -350,10 +361,12 @@ class Function(System):
     def __init__(self,func=lambda : None,label='Fun',
                  StateVars = tuple(),
                  InputVars = tuple(),
-                 OutputVars = tuple()):
+                 OutputVars = tuple(),
+                 ftype=None):
 
         self.func = func
         self.label = label
+        self.ftype = ftype
 
         # In general, ordering of variables matters.
         # This is especially true of parsing outputs
@@ -377,7 +390,7 @@ class Function(System):
 
 class StaticFunction(Function):
     def __init__(self,func=None,InputVars=None,OutputVars=None,label='Fun'):
-        Function.__init__(self,func=func,label=label,
+        Function.__init__(self,func=func,label=label,ftype='static',
                           InputVars=InputVars,OutputVars=OutputVars)
         
 class DifferentialEquation(System):
@@ -404,11 +417,14 @@ class DifferentialEquation(System):
         VectorField = Function(func=func,label=label,
                                InputVars=InputVars,
                                OutputVars=OutputVars,
-                               StateVars=StateVars)
+                               StateVars=StateVars,
+                               ftype='vector_field')
+        
 
         Integrator = Function(label='Integrator',
                               InputVars=OutputVars,
-                              OutputVars=StateVars)
+                              OutputVars=StateVars,
+                              ftype='integrator')
 
         System.__init__(self,
                         Funcs=set([VectorField,Integrator]),label=label)
