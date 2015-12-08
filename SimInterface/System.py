@@ -91,8 +91,8 @@ import inspect as ins
 def castToTuple(Vars):
     if Vars is None:
         return tuple()
-    elif isinstance(Vars,tuple):
-        return Vars
+    elif isinstance(Vars,col.Iterable):
+        return set(Vars)
     else:
         return (Vars,)
 
@@ -187,7 +187,7 @@ class System:
         self.funcToState = {f : f.StateVars for f in self.Funcs}
 
         StateVarSet = reduce(lambda a,b : a|b,
-                             [f.StateVars for f in self.Funcs],
+                             [set(f.StateVars) for f in self.Funcs],
                              set())
         self.StateVars = list(StateVarSet)
 
@@ -341,31 +341,43 @@ class System:
 
         self.graph = dot
 
-        
+def Connect(Systems=set(),label='Sys'):
+    Funcs = reduce(lambda a,b : a | b, [S.Funcs for S in Systems],set())
 
+    return System(Funcs,label)
+    
 class Function(System):
     def __init__(self,func=lambda : None,label='Fun',
-                 StateVars = set(), InputVars = set(), OutputVars = set()):
+                 StateVars = tuple(),
+                 InputVars = tuple(),
+                 OutputVars = tuple()):
 
         self.func = func
         self.label = label
-        StateVarSet = castToSet(StateVars)
-        InputVarSet = castToSet(InputVars)
-        OutputVarSet = castToSet(OutputVars)
 
-        self.StateVars = StateVarSet
-        self.InputVars = InputVarSet
-        self.OutputVars = OutputVarSet
+        # In general, ordering of variables matters.
+        # This is especially true of parsing outputs
+        self.StateVars = castToTuple(StateVars)
+        self.InputVars = castToTuple(InputVars)
+        self.OutputVars = castToTuple(OutputVars)
 
-        self.Vars = StateVarSet | InputVarSet | OutputVarSet
+        # Sometimes, however, we only care about
+        # an un-ordered set
+        StateSet = set(self.StateVars)
+        InputSet = set(self.InputVars)
+        OutputSet = set(self.OutputVars)
+        
+        self.Vars = StateSet | InputSet | OutputSet
 
-        map(lambda v : v.Targets.add(self),StateVarSet | InputVarSet)
-        for v in OutputVarSet:
+        map(lambda v : v.Targets.add(self),StateSet | InputSet)
+        for v in OutputSet:
             v.Source = self
+
+        System.__init__(self,self,label)
 
 class StaticFunction(Function):
     def __init__(self,func=None,InputVars=None,OutputVars=None,label='Fun'):
-        Function.__init__(func=func,label=label,
+        Function.__init__(self,func=func,label=label,
                           InputVars=InputVars,OutputVars=OutputVars)
         
 class DifferentialEquation(System):
@@ -375,15 +387,20 @@ class DifferentialEquation(System):
         # Dummy signals for the time derivatives
         # These "outputs" are fed into a dummy integrator function
         
-        OutputVars = set()
-        StateVarSet = castToSet(StateVars)
+        OutputVars = []
+
         
-        for v in StateVarSet:
+        StateVars = castToTuple(StateVars)
+
+        # Make an ordered list of derivative variables corresponding
+        # to the state variables. 
+        for v in StateVars:
             dvdt = Var.Signal(label='d%s/dt' % v.label,
                               data=np.zeros((1,v.data.shape[1])),
                               TimeStamp=np.zeros(1))
-            OutputVars.add(dvdt)
+            OutputVars.append(dvdt)
 
+        
         VectorField = Function(func=func,label=label,
                                InputVars=InputVars,
                                OutputVars=OutputVars,
