@@ -12,7 +12,6 @@ Oh hey! This is the documentation for the SimInterface, a Python package for sim
    :maxdepth: 1
 
    Variable
-   Function
    System
    SimInterface
 

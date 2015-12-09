@@ -7,10 +7,6 @@ The mappings are given by:
 * :math:`y = g(x,u)`
 
 
-Definitely need to figure out how to use RST for 
-
-* Latex
-* Headings
 
 
 """
