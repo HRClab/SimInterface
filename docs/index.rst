@@ -25,9 +25,9 @@ Features
 What doesn't the SimInterface Do?
 ---------------------------------
 
-The SimInterface is not intended to be a full simulation environment. This code is to help with constructing and manipulating the systems. To simulate a system, you can use separate, dedicated tools, such as scipy.itegrate.
+The SimInterface is not intended to be a full simulation environment. This code is to help with constructing and manipulating the systems. To simulate a system, you can use separate, dedicated tools, such as scipy.itegrate. Thus, you are free to simulate the generated systems however you wish.
 
-By keeping the focus of the
+Additionally, by keeping the focus of base modules narrow, the code stays small and with minimal dependencies. 
 
 Add-Ons
 -------
