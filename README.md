@@ -1,42 +1,15 @@
+
+
+# What is SimInterface?
+
+The SimInterface is meant to be a modular environment for constructing and maniupulating dynamical systems. In particular, the main task of the SimInterface is to handle bookkeeping tasks such as the value of internal signals, which variables get passed to which functions, and so on. 
+ 
+# Tutorial
+
+
+
 # Documentation
 
 For the details of the algorithms, see the [Documentation](http://siminterface.readthedocs.org/en/latest/)
 
-# What is SimInterface?
-
-It is a python-based simulation environment. Currently, it is primarily geared to testing optimal control algorithms. The scope will increase with time.
-
-
-Its main aims are:
-
-* [Object Oriented Design](#object)
-* [Portable Controllers](#portable)
-
-# <a name="object"></a> Object Oriented Design
-
-## Encapsulate System and Controller Data
-Plants and controllers are objects. Plant objects should encapsulate
-all information required for simulation and control
-design. Controller design methods can take plant objects as inputs.  
-
-## Inheritance
-Designing new plant types and controller methods based on existing
-schemes simplifies. 
-
-# <a name="portable"></a> Portable Controllers
-Controllers are be designed to work for every plant in a class. The
-syntax for controller becomes quite simple.
-
-
-# TODO
-
-- [ ] Make classes with external dependencies load conditionally. 
-- [ ] Enable automated installation in setup.py
-- [ ] UPDATE THE DOCUMENTATION
-- [ ] Generalize class rbfNetwork to allow for vector functions (see createRBFbasis)
-- [ ] Put in an x gradient in the general functionApproximator class
-- [ ] Update existing function approximator classes to have their x gradients
-- [ ] A notebook on how to use the function approximators, and detail their capabilities.
-- [ ] Merge in varying function
-- [ ] Make parameterized function a subclass of varying function
-- [ ] Put parameterized function into a different file
+This is a work in progress, so the documentation is still growing and changing. 
