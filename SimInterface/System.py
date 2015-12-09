@@ -371,7 +371,7 @@ class System:
                         dot.edge(v.Source.label,tar.label,label=v.label)
 
             if len(set(v.Targets) & self.Funcs) == 0:
-                dot.node(v.label)
+                dot.node(v.label,shape='plaintext')
                 if v.Source in NonIntegrators:
                     dot.edge(v.Source.label,v.label)
 
