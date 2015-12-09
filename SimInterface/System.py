@@ -1,14 +1,6 @@
 """
 The fundamental objects of the SimInterface are systems. 
 
-The mappings are given by:
-
-* :math:`x' = f(x,u)`
-* :math:`y = g(x,u)`
-
-
-
-
 """
 
 try:
@@ -19,7 +11,6 @@ except ImportError:
 
 import pandas as pd
 import numpy as np
-import scipy.interpolate as interp
 import collections as col
 import Variable as Var
 import inspect as ins
