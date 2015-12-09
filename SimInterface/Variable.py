@@ -44,9 +44,13 @@ class Variable:
 
         self.setData(dataMat,TimeStamp)
 
-    def setData(self,dataMat,TimeStamp):
-        TimeIndices = pd.MultiIndex.from_arrays([np.tile('Time',len(TimeStamp)),
-                                                 TimeStamp])
+    def setData(self,dataMat,TimeStamp=None):
+        if isinstance(self,Parameter):
+            TimeIndices = ['Value']
+        else:
+            TimeIndices = pd.MultiIndex.from_arrays([np.tile('Time',
+                                                             len(TimeStamp)),
+                                                     TimeStamp])
 
         self.data = pd.DataFrame(dataMat,
                                  columns=self.columns,
