@@ -26,3 +26,17 @@ schemes simplifies.
 # <a name="portable"></a> Portable Controllers
 Controllers are be designed to work for every plant in a class. The
 syntax for controller becomes quite simple.
+
+
+# TODO
+
+- [ ] Make classes with external dependencies load conditionally. 
+- [ ] Enable automated installation in setup.py
+- [ ] UPDATE THE DOCUMENTATION
+- [ ] Generalize class rbfNetwork to allow for vector functions (see createRBFbasis)
+- [ ] Put in an x gradient in the general functionApproximator class
+- [ ] Update existing function approximator classes to have their x gradients
+- [ ] A notebook on how to use the function approximators, and detail their capabilities.
+- [ ] Merge in varying function
+- [ ] Make parameterized function a subclass of varying function
+- [ ] Put parameterized function into a different file

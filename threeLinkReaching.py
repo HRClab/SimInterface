@@ -1,9 +1,13 @@
 import SimInterface as SI
 import numpy as np
+import numpy.random as rnd
+import scipy.linalg as la
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import sympy as sym
 import SimInterface.utils.sympy_utils as su
+import SimInterface.functionApproximator as fa
+import SimInterface.parameterizedFunction as pf
 
 #### Define the system ####
 
@@ -106,18 +110,63 @@ Controllers = []
 impedance = SI.staticFunction(impedanceCtrlFunc,Horizon=T,label='Impedance')
 mpc = SI.modelPredictiveControl(SYS=sysGenPend,Horizon=T,
                                 predictiveHorizon=10,label='MPC')
-
-iLQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
-                       Horizon=T,label='iLQR')
-
-MPCtoILQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=100,
+impedanceToILQR = SI.iterativeLQR(SYS=sysGenPend,maxIter=2,
                             initialPolicy=impedance,
                             Horizon=T,label='impedance->iLQR')
 
+## Adaptive Controller with Affine + random RBF
+
+# RBF bases randomly arranged
+NumBases = 3
+NoiseStd = .01
+Centers = rnd.randn(NumBases,sysGenPend.NumStates)
+Lengths = rnd.randn(NumBases)**2. # Require positive length scales
+ActivationMatrix = rnd.randn(sysGenPend.NumInputs,NumBases)
+
+rbfBasis = fa.createRBFbasis(Centers,Lengths,ActivationMatrix)
+affineBasis = fa.createAffineBasisFunction(sysGenPend.NumInputs)
+
+def mixedBasis(x,k=None):
+    ABasis = affineBasis(x,k)
+    RBasis = rbfBasis(x,k)
+    return np.hstack((ABasis,RBasis))
+
+linParam = np.zeros((sysGenPend.NumStates+1)*sysGenPend.NumInputs)
+rbfParam = np.zeros(NumBases)
+CovChol = NoiseStd * np.eye(sysGenPend.NumInputs)
+covParam = fa.stackLower(CovChol)
+
+noisyParam = np.hstack((linParam,rbfParam,covParam))
+
+
+noisyPolicy = pf.noisyLinParamFun(basisFunction=mixedBasis,
+                                             NumInputs=sysGenPend.NumInputs,
+                                             NumStates=sysGenPend.NumStates,
+                                             parameter=noisyParam,
+                                             Horizon=T)
+
+n = sysGenPend.NumStates
+NumCostParams = (n+1)*(n+2)/2
+costParam = np.zeros(NumCostParams)
+quadCost = fa.parameterizedQuadratic(NumVars=sysGenPend.NumStates,
+                                     parameter=costParam)
+
+adaptiveCtrl = SI.naturalActorCritic(sysGenPend,Horizon=T,
+                                     policy=noisyPolicy,
+                                     costApproximator=quadCost,
+                                     EpisodeLength=T,EpisodeCount=100,
+                                     TraceDecayFactor = .1,
+                                     DiscountFactor = .9,
+                                     ForgettingFactor = .9,
+                                     reset=True,
+                                     label='Actor Critic')
+                                     
+
+
 Controllers.append(impedance)
 Controllers.append(mpc)
-Controllers.append(iLQR)
-Controllers.append(MPCtoILQR)
+Controllers.append(impedanceToILQR)
+Controllers.append(adaptiveCtrl)
 
 
 #### Prepare the simulations ####

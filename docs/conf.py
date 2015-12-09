@@ -18,7 +18,7 @@ import shlex
 
 import mock
  
-MOCK_MODULES = ['numpy','numpy.random',
+MOCK_MODULES = ['numpy','numpy.random','pandas',
                 'scipy', 'sympy', 'scipy.linalg']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -41,6 +41,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'sphinx.ext.graphviz',
+    'sphinx.ext.mathjax',
     'sphinx.ext.inheritance_diagram',
 ]
 
