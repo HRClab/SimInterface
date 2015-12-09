@@ -106,7 +106,6 @@ def castToSet(S):
     else:
         return set([S])
     
-
 class System:
     """
     I think a better solution would be obtained by just forcing
@@ -194,11 +193,6 @@ class System:
                              (v.Source not in self.Funcs) and \
                              (isinstance(v,Var.Signal))]
 
-        self.IndexSlopes = []
-        for v in self.InputSignals:
-            TimeIndex = np.array(v.data.index.levels[1])
-            slopeList = 1./np.diff(TimeIndex)
-            self.IndexSlopes.append(slopeList)
             
         ##### Initial Condition for ODE Integration ######
         Dimensions = [0]
@@ -206,14 +200,19 @@ class System:
         self.StateIndexBounds = np.cumsum(Dimensions)
 
         NumStates = len(self.StateVars)
-        self.InitialState = np.zeros(self.StateIndexBounds[-1] + \
-                                     len(self.InputSignals))
+        self.InitialState = np.zeros(self.StateIndexBounds[-1])
+        
         for k in range(NumStates):
             InitVal = np.array(self.StateVars[k].data.iloc[0])
             indLow,indHigh = self.StateIndexBounds[k:k+2]
             self.InitialState[indLow:indHigh] = InitVal
             
         self.__createGraph()
+
+    def UpdateParameters(self):
+        Parameters = [v for v in self.Vars if isinstance(v,Var.Parameter)]
+        for v in Parameters:
+            self.labelToValue[v.label] = np.array(v.data.iloc[0])
         
     def UpdateSignals(self,Time=[],State=[]):
         T = len(Time)
@@ -242,28 +241,10 @@ class System:
             self.labelToValue[v.label] = curVal
 
         # Set Input Signal Values
-        NumIndexStates = len(self.InputSignals)
-        IndexStateList = State[-NumIndexStates:]
 
-        for k in range(NumIndexStates):
-            ctsIndex = IndexStateList[k]
-            curInd = int(np.floor(ctsIndex))
-            nextInd = curInd+1
-
-            if nextInd < len(self.IndexSlopes[k]):
-                v = self.InputSignals[k]
-                # Linearly interpolate exogenous inputs
-                # Presumably this could help smoothness.
-                # and it is not very hard. 
-                prevInput = v.data.iloc[curInd]
-                nextInput = v.data.iloc[nextInd]
-                lam = IndexStateList[k] - curInd
-                # this can be called later.
-                inputVal = (1-lam) * prevInput + lam * nextInput
-                self.labelToValue[v.label] = np.array(inputVal)
-            else:
-                # If out of bounds just stay at the last value.
-                self.labelToValue[v.label] = np.array(v.data.iloc[-1])
+        for v in self.InputSignals:
+            tInd = np.argwhere(v.data.index.levels[1] >= Time)[0,0]
+            self.labelToValue[v.label] = np.array(v.data.iloc[tInd])
 
         # Set Intermediate Signal Values
 
@@ -288,27 +269,7 @@ class System:
         State_dot = np.zeros(len(State))
 
         self.__setSignalValues(Time,State)
-        NumStates = len(self.StateVars)
-
-        # Index states
-        NumIndexStates = len(self.InputSignals)
-        IndexStateList = State[-NumIndexStates:]
-        IndexSlopes = np.zeros(NumIndexStates)
-        
-        for k in range(NumIndexStates):
-            ctsIndex = IndexStateList[k]
-            curInd = int(np.floor(ctsIndex))
-            nextInd = curInd+1
-            if nextInd < len(self.IndexSlopes[k]):
-                # Not too near end
-                IndexSlopes[k] = self.IndexSlopes[k][curInd]
-            else:
-                # If out of bounds just stay at the last value.
-                IndexSlopes[k] = 0.
-
-        ## Plug in the derivative of the index slopes. 
-        State_dot[-NumIndexStates:] = IndexSlopes
-    
+        NumStates = len(self.StateVars)    
                 
         # Apply the vector fields
 
