@@ -28,7 +28,9 @@ class Variable:
             subscriptTuples = np.unravel_index(indices,shape)
             subscriptList = [np.tile(self.label,NumEl)]
             subscriptList.extend(subscriptTuples)
-            columns = pd.MultiIndex.from_arrays(subscriptList)
+            print subscriptList
+            subScriptTup = (np.tile(self.label,NumEl),) + subscriptTuples
+            columns = pd.MultiIndex.from_arrays(subscriptTuples)
         else:
             columns = [self.label]
 

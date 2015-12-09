@@ -84,6 +84,7 @@ except ImportError:
 
 import pandas as pd
 import numpy as np
+import scipy.interpolate as interp
 import collections as col
 import Variable as Var
 import inspect as ins
@@ -243,7 +244,7 @@ class System:
         # Set Input Signal Values
 
         for v in self.InputSignals:
-            tInd = np.argwhere(v.data.index.levels[1] >= Time)[0,0]
+            tInd = np.argwhere(v.data.index.levels[1]<=Time)[-1,0]
             self.labelToValue[v.label] = np.array(v.data.iloc[tInd])
 
         # Set Intermediate Signal Values
