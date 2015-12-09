@@ -196,7 +196,8 @@ class System:
 
         self.IndexSlopes = []
         for v in self.InputSignals:
-            slopeList = 1./np.diff(v.data.index)
+            TimeIndex = np.array(v.data.index.levels[1])
+            slopeList = 1./np.diff(TimeIndex)
             self.IndexSlopes.append(slopeList)
             
         ##### Initial Condition for ODE Integration ######
@@ -228,10 +229,8 @@ class System:
                 NewData[v][k] = self.labelToValue[v.label]
 
         for v in InternalSignals:
-            v.data = pd.DataFrame(NewData[v],
-                                  columns=v.data.columns,
-                                  index=Time)
-
+            # Need a reset 
+            v.setData(NewData[v],Time)
 
     def __setSignalValues(self,Time,State):
         # Set State Values

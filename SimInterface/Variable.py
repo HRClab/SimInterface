@@ -9,17 +9,16 @@ import pandas as pd
 
 class Variable:
     def __init__(self,label='Var',data=None,TimeStamp=None):
-        self.__createDataFrame(label,data,TimeStamp)
-        
         self.label = label
+        self.__createDataFrame(data,TimeStamp)
+
         self.Source = None
         self.Targets = set()
 
-    def __createDataFrame(self,label,data,TimeStamp):
+    def __createDataFrame(self,data,TimeStamp):
         """
         An internal function to create a pandas DataFrame object 
         """
-        
         shape = data.shape[1:]
             
         if len(shape) > 0:
@@ -27,12 +26,13 @@ class Variable:
             NumEl = np.prod(shape)
             indices = range(NumEl)
             subscriptTuples = np.unravel_index(indices,shape)
-            subscriptList = [np.tile(label,NumEl)]
+            subscriptList = [np.tile(self.label,NumEl)]
             subscriptList.extend(subscriptTuples)
             columns = pd.MultiIndex.from_arrays(subscriptList)
         else:
-            columns = [label]
+            columns = [self.label]
 
+        self.columns = columns
 
         if len(shape) == 1:
             # Already have a table
@@ -40,10 +40,16 @@ class Variable:
         else:
             dataMat = np.reshape(data,(len(data),np.prod(shape)))
 
+        self.setData(dataMat,TimeStamp)
+
+    def setData(self,dataMat,TimeStamp):
+        TimeIndices = pd.MultiIndex.from_arrays([np.tile('Time',len(TimeStamp)),
+                                                 TimeStamp])
+
         self.data = pd.DataFrame(dataMat,
-                                 columns=columns,
-                                 index=TimeStamp)
-        
+                                 columns=self.columns,
+                                 index=TimeIndices)
+
 
     def __getitem__(self,item):
         return self.data[item]
