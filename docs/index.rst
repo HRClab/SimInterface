@@ -30,7 +30,7 @@ The SimInterface is not intended to be a full simulation environment. This code 
 Additionally, by keeping the focus of base modules narrow, the code stays small and with minimal dependencies. 
 
 Modules
--------
+=======
   
 .. toctree::
    :maxdepth: 1
