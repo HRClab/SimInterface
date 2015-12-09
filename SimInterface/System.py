@@ -220,50 +220,44 @@ class System:
             
         self.__createGraph()
         
-    def UpdateState(self,Time=[],State=[]):
-        for k in range(len(self.StateVars)):
-            v = self.StateVars[k]
-            # Probably better to just use a set method here
-            # but this will work as long as the method for
-            # initializing data does not change
-            indLow,indHigh = self.StateIndexBounds[k:k+2]
-            v.data = pd.DataFrame(State[:,indLow:indHigh],
+    def UpdateSignals(self,Time=[],State=[]):
+        T = len(Time)
+        Signals = set([v for v in self.Vars if isinstance(v,Var.Signal)])
+        InternalSignals = Signals - set(self.InputSignals)
+        NewData = {v : np.zeros((T,v.data.shape[1])) \
+                   for v in InternalSignals}
+        for k in range(len(Time)):
+            t = Time[k]
+            S = State[k]
+            self.__setSignalValues(t,S)
+            for v in InternalSignals:
+                NewData[v][k] = self.labelToValue[v.label]
+
+        for v in InternalSignals:
+            v.data = pd.DataFrame(NewData[v],
                                   columns=v.data.columns,
                                   index=Time)
 
-    def VectorField(self,Time,State):
-        """
-        Something suitable for passing to ODE methods.
-        """
 
-        State_dot = np.zeros(len(State))
-
-        # Update the state values
-        ## Split the states into a list
+    def __setSignalValues(self,Time,State):
+        # Set State Values
         NumStates = len(self.StateVars)
-
         for k in range(NumStates):
             v = self.StateVars[k]
             indLow,indHigh = self.StateIndexBounds[k:k+2]
             curVal = State[indLow:indHigh]
             self.labelToValue[v.label] = curVal
-        
-        # Compute the exogenous inputs 
-        ##  The index states
+
+        # Set Input Signal Values
         NumIndexStates = len(self.InputSignals)
         IndexStateList = State[-NumIndexStates:]
 
-        IndexSlopes = np.zeros(NumIndexStates)
-        
         for k in range(NumIndexStates):
             ctsIndex = IndexStateList[k]
             curInd = int(np.floor(ctsIndex))
             nextInd = curInd+1
 
             if nextInd < len(self.IndexSlopes[k]):
-                # Not too near end
-                IndexSlopes[k] = self.IndexSlopes[k][curInd]
-
                 v = self.InputSignals[k]
                 # Linearly interpolate exogenous inputs
                 # Presumably this could help smoothness.
@@ -276,32 +270,79 @@ class System:
                 self.labelToValue[v.label] = np.array(inputVal)
             else:
                 # If out of bounds just stay at the last value.
-                IndexSlopes[k] = 0.
                 self.labelToValue[v.label] = np.array(v.data.iloc[-1])
+
+        # Set Intermediate Signal Values
+
+        for f in self.ExecutionOrder:
+            argList = ins.getargspec(f.func)[0]
+            valList = [self.labelToValue[lab] for lab in argList]
+            outTup = f.func(*valList)
+
+            if len(f.OutputVars) > 1:
+                for k in len(f.OutputVars):
+                    outVariable = f.OutputVars[k]
+                    outValue = outTup[k]
+                    self.labelToValue[outVariable.label] = outValue
+            else:
+                self.labelToValue[f.OutputVars[0].label] = outTup
+
+        
+    def VectorField(self,Time,State):
+        """
+        Something suitable for passing to ODE methods.
+        """
+
+        State_dot = np.zeros(len(State))
+
+        self.__setSignalValues(Time,State)
+        NumStates = len(self.StateVars)
+        # Update the state values
+        ## Split the states into a list
+        
+        # Compute the exogenous inputs 
+        ##  The index states
+        NumIndexStates = len(self.InputSignals)
+        IndexStateList = State[-NumIndexStates:]
+
+        IndexSlopes = np.zeros(NumIndexStates)
+        
+        for k in range(NumIndexStates):
+            ctsIndex = IndexStateList[k]
+            curInd = int(np.floor(ctsIndex))
+            nextInd = curInd+1
+            if nextInd < len(self.IndexSlopes[k]):
+                # Not too near end
+                IndexSlopes[k] = self.IndexSlopes[k][curInd]
+            else:
+                # If out of bounds just stay at the last value.
+                IndexSlopes[k] = 0.
 
         ## Plug in the derivative of the index slopes. 
         State_dot[-NumIndexStates:] = IndexSlopes
     
-        # Apply the static functions in the appropriate order 
-        ## Handle this once we actually have a static function.
-        ## This will involve updating self.labelToValue
-        
+                
         # Apply the vector fields
 
-        ## Compute vector field        
+        ## Compute vector field
+        dvdt = {v : np.zeros(v.data.shape[1]) for v in self.StateVars}
+        for f in self.StateFuncs:
+            argList = ins.getargspec(f.func)[0]
+            valList = [self.labelToValue[lab] for lab in argList]
+            dxdt = f.func(*valList)
+            nx = len(f.StateVars)
+
+            # output may or may not be a tuple. 
+            if nx > 1:
+                for k in range(nx):
+                    dvdt[f.StateVars[k]] += dxdt[k]
+            else:
+                dvdt[f.StateVars[0]] += dxdt
+            
         for k in range(NumStates):
-            v = self.StateVars[k]
-            dvdt = np.zeros(v.data.shape[1])
-            for f in self.stateToFunc[v]:
-                argList = ins.getargspec(f.func)[0]
-                # Need to map labels to variables
-                # and then map variables to current values
-                valList = [self.labelToValue[lab] for lab in argList]
-                dvdt += f.func(*valList)
-
             indLow,indHigh = self.StateIndexBounds[k:k+2]
-            State_dot[indLow:indHigh] = dvdt
-
+            State_dot[indLow:indHigh] = dvdt[self.StateVars[k]]
+        
         return State_dot
 
     def __createGraph(self):
