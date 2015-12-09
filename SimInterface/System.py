@@ -278,6 +278,7 @@ class System:
         Basically make a separate submodule called "SystemGraph"
         """
         if not graphviz:
+            self.graph = None
             return
         
         dot = gv.Digraph(name=self.label)
