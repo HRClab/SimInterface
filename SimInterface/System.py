@@ -174,15 +174,9 @@ class System:
         self.labelToValue = {v.label : np.array(v.data.iloc[0]) \
                              for v in self.Vars}
                              
-        # Not sure if these are needed
-        # Build a dictionary from functions to inputs
-        self.funcToInputs = {f : f.InputVars for f in self.Funcs}
-        # Also need a dictionary from functions to outputs
-        self.funcToOutputs = {f : f.OutputVars for f in self.Funcs}
 
         ##### Things needed for Vector Field ######
         self.StateFuncs = [f for f in self.Funcs if len(f.StateVars)>0]
-        self.funcToState = {f : f.StateVars for f in self.Funcs}
 
         StateVarSet = reduce(lambda a,b : a|b,
                              [set(f.StateVars) for f in self.Funcs],
@@ -292,19 +286,14 @@ class System:
         """
         Something suitable for passing to ODE methods.
         """
-
         State_dot = np.zeros(len(State))
 
         self.__setSignalValues(Time,State)
         NumStates = len(self.StateVars)
-        # Update the state values
-        ## Split the states into a list
-        
-        # Compute the exogenous inputs 
-        ##  The index states
+
+        # Index states
         NumIndexStates = len(self.InputSignals)
         IndexStateList = State[-NumIndexStates:]
-
         IndexSlopes = np.zeros(NumIndexStates)
         
         for k in range(NumIndexStates):
