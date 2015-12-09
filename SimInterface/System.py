@@ -194,6 +194,11 @@ class System:
                              (v.Source not in self.Funcs) and \
                              (isinstance(v,Var.Signal))]
 
+        self.IndexSlopes = []
+        for v in self.InputSignals:
+            TimeIndex = np.array(v.data.index.levels[1])
+            slopeList = 1./np.diff(TimeIndex)
+            self.IndexSlopes.append(slopeList)
             
         ##### Initial Condition for ODE Integration ######
         Dimensions = [0]
@@ -201,7 +206,8 @@ class System:
         self.StateIndexBounds = np.cumsum(Dimensions)
 
         NumStates = len(self.StateVars)
-        self.InitialState = np.zeros(self.StateIndexBounds[-1])
+        self.InitialState = np.zeros(self.StateIndexBounds[-1] + \
+                                     len(self.InputSignals))
         
         for k in range(NumStates):
             InitVal = np.array(self.StateVars[k].data.iloc[0])
@@ -243,9 +249,29 @@ class System:
 
         # Set Input Signal Values
 
-        for v in self.InputSignals:
-            tInd = np.argwhere(v.data.index.levels[1]<=Time)[-1,0]
-            self.labelToValue[v.label] = np.array(v.data.iloc[tInd])
+        NumIndexStates = len(self.InputSignals)
+        IndexStateList = State[-NumIndexStates:]
+
+        for k in range(NumIndexStates):
+            ctsIndex = IndexStateList[k]
+            curInd = int(np.floor(ctsIndex))
+            nextInd = curInd+1
+
+            if nextInd < len(self.IndexSlopes[k]):
+                v = self.InputSignals[k]
+                # Linearly interpolate exogenous inputs
+                # Presumably this could help smoothness.
+                # and it is not very hard. 
+                prevInput = v.data.iloc[curInd]
+                nextInput = v.data.iloc[nextInd]
+                lam = IndexStateList[k] - curInd
+                # this can be called later.
+                inputVal = (1-lam) * prevInput + lam * nextInput
+                self.labelToValue[v.label] = np.array(inputVal)
+            else:
+                # If out of bounds just stay at the last value.
+                self.labelToValue[v.label] = np.array(v.data.iloc[-1])
+        
 
         # Set Intermediate Signal Values
 
@@ -274,7 +300,26 @@ class System:
                 
         # Apply the vector fields
 
-        ## Compute vector field
+        ## Compute
+        NumIndexStates = len(self.InputSignals)
+        IndexStateList = State[-NumIndexStates:]
+        IndexSlopes = np.zeros(NumIndexStates)
+        
+        for k in range(NumIndexStates):
+            ctsIndex = IndexStateList[k]
+            curInd = int(np.floor(ctsIndex))
+            nextInd = curInd+1
+            if nextInd < len(self.IndexSlopes[k]):
+                # Not too near end
+                IndexSlopes[k] = self.IndexSlopes[k][curInd]
+            else:
+                # If out of bounds just stay at the last value.
+                IndexSlopes[k] = 0.
+
+        ## Plug in the derivative of the index slopes. 
+        State_dot[-NumIndexStates:] = IndexSlopes    
+        
+        ## Compute main vector field 
         dvdt = {v : np.zeros(v.data.shape[1]) for v in self.StateVars}
         for f in self.StateFuncs:
             argList = ins.getargspec(f.func)[0]
