@@ -8,6 +8,9 @@ import numpy as np
 import pandas as pd
 
 class Variable:
+    """
+    The base class a variable
+    """
     def __init__(self,label='Var',data=None,TimeStamp=None):
         self.label = label
         self.__createDataFrame(data,TimeStamp)
@@ -83,7 +86,9 @@ class Signal(Variable):
        label : str
           what to call the variable
 
-       value : scalar or array_like
+       data : scalar or array_like encoding the time series
+
+       TimeStamp : scalar or arra_like encoding the times of the data points
 
     """
 
